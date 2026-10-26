@@ -291,6 +291,8 @@ export async function tryModel(provider: string, model: string): Promise<{ ok: b
 /** Turn a timeout or "overloaded" error from a connection test into something the user can act on. */
 function explainCheckFailure(msg: string, provider: string, model: string): string {
   const slow = /timed out/i.test(msg);
+  const found = slow ? msg.replace(/^Hermes timed out after \d+s\.\s*/, '') : '';
+  if (found) return found;
   if (!slow && !TRANSIENT.test(msg)) return msg;
   const what = slow ? `didn't answer within ${CHECK_TIMEOUT_SEC}s` : 'is overloaded right now';
   const detail = slow ? '' : ` (${msg.slice(0, 200)})`;
@@ -298,6 +300,69 @@ function explainCheckFailure(msg: string, provider: string, model: string): stri
     return `Google Gemini ${what} with ${model}. Its free tier is often busy, especially on Pro and preview models. Try a Flash model such as gemini-flash-latest, then test again.${detail}`;
   }
   return `${providerName(provider)} ${what} with ${model}. Test again in a minute, or pick a smaller, faster model.${detail}`;
+}
+
+// ---------- why a call stalled ----------
+// `hermes -z` prints nothing until a turn ends, and some failures never end it: a provider SDK that
+// isn't installed makes Hermes stop to ask "Install it now? [Y/n]" where nobody can answer, and a
+// refused key (no credits) can send it retrying forever. Hermes's own log still records the cause.
+
+/** Hermes's optional feature (pm "extra") each provider's SDK comes from. */
+const PROVIDER_EXTRA: Record<string, string> = { anthropic: 'anthropic' };
+
+/** The extra this provider needs, if Hermes's latest dependency sync didn't install it. */
+async function missingExtra(rt: string[], provider: string): Promise<string | null> {
+  const extra = PROVIDER_EXTRA[provider];
+  if (!extra) return null;
+  try {
+    const out = await execText(rt[0], [...rt.slice(1), 'pm', 'status'], 30000);
+    const features = JSON.parse(out.slice(out.indexOf('{'))).feature_list;
+    return Array.isArray(features) && !features.includes(extra) ? extra : null;
+  } catch {
+    return null;
+  }
+}
+
+const LOG_TAIL_BYTES = 512 * 1024;
+
+/** The provider's own error message, from Hermes's log lines written since `since`. */
+function providerErrorInLog(profile: string | null, provider: string, since: number): string | null {
+  const file = profile ? path.join(hermesHome(), 'profiles', profile, 'logs', 'agent.log') : path.join(hermesHome(), 'logs', 'agent.log');
+  let text: string;
+  try {
+    const fd = fs.openSync(file, 'r');
+    try {
+      const size = fs.fstatSync(fd).size;
+      const buf = Buffer.alloc(Math.min(size, LOG_TAIL_BYTES));
+      fs.readSync(fd, buf, 0, buf.length, size - buf.length);
+      text = buf.toString('utf8');
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return null;
+  }
+  let found: string | null = null;
+  let at = 0; // traceback lines carry no timestamp; they belong to the last stamped line
+  for (const line of text.split(/\r?\n/)) {
+    const stamp = line.match(/^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d),\d+ /);
+    if (stamp) at = new Date(`${stamp[1]}T${stamp[2]}`).getTime();
+    if (at < since - 1000) continue;
+    const api = line.match(/Error code: (\d{3}) - \{.*?'message': (?:'([^']*)'|"([^"]*)")/);
+    if (api) found = `${providerName(provider)} refused the request: ${api[2] ?? api[3]} (HTTP ${api[1]})`;
+    const creds = line.match(/No usable credentials found for provider '([^']+)'\.?(.*)/);
+    if (creds && creds[1] === provider) found = `Hermes has no usable ${providerName(provider)} credentials.${creds[2] ? ` ${creds[2].trim()}` : ''}`;
+  }
+  return found && found.slice(0, 400);
+}
+
+/** Best guess at why a call produced nothing before its timeout, or null when nothing points anywhere. */
+async function diagnoseStall(rt: string[], profile: string | null, provider: string, since: number): Promise<string | null> {
+  const extra = await missingExtra(rt, provider);
+  if (extra) {
+    return `Hermes's optional "${extra}" feature isn't installed, so Hermes is stuck waiting to ask whether to install it. In a terminal run: hermes pm install --extra ${extra} — then hermes gateway restart --yes, and test again.`;
+  }
+  return providerErrorInLog(profile, provider, since);
 }
 
 export function finishRun(h: RunHandle, ok: boolean, detail?: string, error?: string) {
@@ -456,9 +521,15 @@ async function runOnce(
       child.stdout.on('data', d => out.push(d));
       child.stderr.on('data', d => (err += d.toString()));
       const timeoutMs = (call.timeoutSec || settings.timeoutSec || 240) * 1000;
+      let timedOut = false;
       const timer = setTimeout(() => {
+        timedOut = true;
         killTree(child.pid);
-        reject(new Error(`Hermes timed out after ${Math.round(timeoutMs / 1000)}s.`));
+        const msg = `Hermes timed out after ${Math.round(timeoutMs / 1000)}s.`;
+        diagnoseStall(rt, profile, call.provider || settings.provider, t0).then(
+          why => reject(new Error(why ? `${msg} ${why}` : msg)),
+          () => reject(new Error(msg)),
+        );
       }, timeoutMs);
       child.on('error', e => {
         clearTimeout(timer);
@@ -470,6 +541,7 @@ async function runOnce(
         if (child.pid) jobPids.delete(child.pid);
         if (child.pid) runPids.delete(child.pid);
         const stdout = Buffer.concat(out).toString('utf8').trim();
+        if (timedOut && !isJobPaused(jobId) && !isStopped(h)) return; // the timer reports, once it knows why
         if (isJobPaused(jobId)) reject(new Error(PAUSED));
         else if (isStopped(h)) reject(new Error(STOPPED));
         else if (code === 0 && stdout) resolve(stdout);
