@@ -413,6 +413,14 @@ export interface HermesStatus {
   rateLimitedUntil?: string; // provider rate limit: queue paused until this time
 }
 
+/** What Hermes already knows about the person's AI accounts, so setup can fill itself in. */
+export interface HermesAccounts {
+  signedIn: string[]; // providers Hermes holds a sign-in for
+  models: Record<string, string[]>; // models each provider offers, best first
+  defaults: Record<string, string>; // the model Talaria picks for each provider
+  configured?: { provider?: string; model?: string }; // what `hermes model` last set up
+}
+
 export interface ScoutState {
   running: boolean;
   phase?: string;

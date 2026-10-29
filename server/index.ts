@@ -6,7 +6,7 @@ import type { Bootstrap, Job, JobStatus, Packet, Preferences, Profile, Settings,
 import { DIST_DIR, UPLOAD_DIR } from './lib/paths.ts';
 import { addClient, toast } from './lib/events.ts';
 import * as store from './lib/store.ts';
-import { askJson, checkHermes, finishRun, getHermesStatus, listProviderModels, rateLimitedUntil, startRun, tryModel } from './lib/hermes.ts';
+import { askJson, checkHermes, connectProvider, finishRun, getHermesStatus, listAccounts, listProviderModels, rateLimitedUntil, startRun, tryModel } from './lib/hermes.ts';
 import { buildProfileFromResume, canRereadResume, extractResumeText, rereadResume } from './agents/profile.ts';
 import { filterAndRank, getScoutState, runScout } from './agents/scout.ts';
 import { analyzeJob, answerQuestions, applyGapNotes, chatWithHermes, coverage, resumeText as resumePlainText, markApplied, moveJob, pauseJob, prepareApplication, refreshStaleDrafts, reorderColumn, restoreVersion, resumeJob, reviseCoverLetter, setGapNote, startDrafting } from './agents/pipeline.ts';
@@ -77,6 +77,24 @@ app.post('/api/hermes/try', async (req, res) => {
 
 app.get('/api/hermes/models', async (_req, res) => {
   res.json(await listProviderModels());
+});
+
+app.get('/api/hermes/accounts', async (_req, res) => {
+  res.json(await listAccounts());
+});
+
+// Test a provider and, when it answers, make it the one Talaria uses. Without a model, Talaria picks one the account accepts.
+app.post('/api/hermes/connect', async (req, res) => {
+  const { provider, model } = req.body || {};
+  if (!provider) return res.status(400).json({ error: 'provider is required' });
+  const r = await connectProvider(String(provider), model ? String(model) : undefined);
+  if (r.ok && r.model) {
+    const hermes = store.getSettings().hermes;
+    // A writing model from another provider wouldn't work after the switch.
+    store.setSettings({ hermes: { ...hermes, provider: String(provider), model: r.model, tailorModel: provider === hermes.provider ? hermes.tailorModel : undefined } });
+    checkHermes(true).catch(() => {});
+  }
+  res.json(r);
 });
 
 // ---------------- profile ----------------

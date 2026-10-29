@@ -92,7 +92,7 @@ export function SettingsView() {
               </div>
               <div className="grid gap-5 p-5 sm:grid-cols-2">
                 <Field label="Provider" hint="Any provider you've signed into with Hermes. Talaria tests it before switching.">
-                  <ProviderSelect value={h.provider} options={Object.keys(models)} disabled={Boolean(trying)} onChange={provider => tryAndSave(provider, provider === 'copilot' ? 'gpt-4.1' : provider === 'openai-codex' ? 'gpt-5.6-terra' : (models[provider] || [])[0] || h.model)} />
+                  <ProviderSelect value={h.provider} options={Object.keys(models)} disabled={Boolean(trying)} onChange={provider => tryAndSave(provider, (models[provider] || [])[0] || h.model)} />
                 </Field>
                 <Field
                   label={
