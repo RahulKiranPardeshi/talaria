@@ -96,6 +96,7 @@ export interface Profile {
   resumeFileName?: string;
   latexSource?: string; // the user's own LaTeX resume, kept as the template for tailoring
   story?: string; // who you are beyond the resume, in your words: the material for cover letters
+  ideas?: ProfileIdeas; // suggestions from the resume, offered (never filled in) across the app
   updatedAt?: string;
 }
 
@@ -411,6 +412,14 @@ export interface HermesStatus {
   browserTools?: boolean;
   checking?: boolean;
   rateLimitedUntil?: string; // provider rate limit: queue paused until this time
+}
+
+/** Ideas Hermes draws from a resume, shown as suggestions and examples so they fit this person's field. */
+export interface ProfileIdeas {
+  roles: string[]; // more job titles worth a look, beyond the ones filled in
+  topics: string[]; // domains, products and technologies they might love
+  dealBreakers: string[]; // what people in this field often rule out
+  locations: string[]; // cities, countries or regions that hire this profile and suit them
 }
 
 /** What Hermes already knows about the person's AI accounts, so setup can fill itself in. */

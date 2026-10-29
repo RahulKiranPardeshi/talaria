@@ -117,22 +117,26 @@ export function WelcomeStep({ kicker, next }: { kicker: string; next: () => void
 
 // ---------------- 1. Connect the AI ----------------
 
-type ProviderId = 'openai-codex' | 'copilot' | 'other';
+type ProviderId = 'openai-codex' | 'anthropic' | 'copilot' | 'other';
 
 const PROVIDERS: { id: ProviderId; name: string; account: string; who: string }[] = [
   { id: 'openai-codex', name: 'ChatGPT / Codex', account: 'ChatGPT', who: 'I pay for ChatGPT (Plus, Pro or Business)' },
+  { id: 'anthropic', name: 'Claude (Anthropic)', account: 'Claude', who: 'I pay for Claude (Pro or Max)' },
   { id: 'copilot', name: 'GitHub Copilot', account: 'GitHub Copilot', who: 'I have GitHub Copilot (the free student plan counts)' },
-  { id: 'other', name: 'Something else', account: 'your provider', who: 'I have an API key (OpenRouter, Gemini, Anthropic, OpenAI…)' },
+  { id: 'other', name: 'Something else', account: 'your provider', who: 'I have an API key (OpenRouter, Gemini, OpenAI…)' },
 ];
 
 const MODEL_HINT: Partial<Record<ProviderId, string>> = {
-  'openai-codex': 'Your ChatGPT plan accepts the gpt-5.6 models. Every call counts against your ChatGPT usage limits.',
+  'openai-codex': 'The list shows the models your ChatGPT plan offers. Every call counts against your ChatGPT usage limits.',
+  anthropic: 'Every call counts against your Claude plan’s usage limits, shared with claude.ai and Claude Code. Sonnet is the best balance; Opus uses the limits faster.',
   copilot: 'gpt-4.1 and gpt-4o are unlimited on Copilot. Premium models use your monthly quota and may need enabling at github.com/settings/copilot.',
 };
 
 type ConnectResult = { ok: boolean; model?: string; message?: string; latencyMs?: number };
 
-const isSubscription = (provider: string) => provider === 'openai-codex' || provider === 'copilot';
+// The subscriptions with their own button; any other provider goes under "Something else".
+const SUBSCRIPTIONS: string[] = ['openai-codex', 'anthropic', 'copilot'];
+const isSubscription = (provider: string) => SUBSCRIPTIONS.includes(provider);
 
 function Collapsible({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = React.useState(defaultOpen);
@@ -166,7 +170,7 @@ export function ConnectStep({ kicker, next, back }: { kicker: string; next: () =
   const settings = useApp(s => s.settings)!;
   const [setup, setSetup] = React.useState<SetupStatus | null>(null);
   const [looking, setLooking] = React.useState(true);
-  const [choice, setChoice] = React.useState<ProviderId>(settings.hermes.provider === 'openai-codex' ? 'openai-codex' : settings.hermes.provider === 'copilot' ? 'copilot' : 'other');
+  const [choice, setChoice] = React.useState<ProviderId>(isSubscription(settings.hermes.provider) ? (settings.hermes.provider as ProviderId) : 'other');
   const current = PROVIDERS.find(p => p.id === choice)!;
   const [accounts, setAccounts] = React.useState<HermesAccounts | null>(null);
   // Only "Something else" asks for names; the subscriptions are known.
@@ -298,6 +302,13 @@ export function ConnectStep({ kicker, next, back }: { kicker: string; next: () =
                     <p className="text-[12px] text-faint">Uses your ChatGPT plan's allowance, so there's no separate bill and no API key. Heavy use can hit your plan's limits; Talaria pauses and retries by itself.</p>
                   </>
                 )}
+                {choice === 'anthropic' && (
+                  <>
+                    <p className="text-[13px] leading-relaxed text-muted">Copy this into your terminal and press Enter. A browser window opens: sign in with your Claude account and approve. Then come back here.</p>
+                    <Cmd>hermes auth add anthropic --type oauth</Cmd>
+                    <p className="text-[12px] text-faint">Uses your Claude Pro or Max plan's allowance, so there's no separate bill and no API key. Heavy use can hit your plan's limits; Talaria pauses and retries by itself.</p>
+                  </>
+                )}
                 {choice === 'copilot' && (
                   <>
                     <p className="text-[13px] leading-relaxed text-muted">Install the GitHub command-line tool if you don't have it, then sign in to GitHub. A browser window opens; approve the sign-in.</p>
@@ -398,9 +409,9 @@ export function ConnectStep({ kicker, next, back }: { kicker: string; next: () =
           {setup?.pdflatex ? <p className="font-medium text-ok">MiKTeX found.</p> : <p>Download it from miktex.org (Windows) or install TeX Live (Mac / Linux), then restart Talaria.</p>}
         </Collapsible>
         <Collapsible title={`${setup?.browser.ok ? '✓' : '○'}  Browser helper, for submitting applications for you`}>
-          <p>To fill in and submit application forms, Talaria drives its own Chrome-like window. It needs a one-time download of about 150 MB.</p>
+          <p>To fill in and submit application forms, Talaria opens a window of your own browser (Chrome, Edge or Brave) with a separate profile. If you have none of those, it needs a one-time download of about 150 MB.</p>
           {setup?.browser.ok ? (
-            <p className="font-medium text-ok">Browser helper is ready.</p>
+            <p className="font-medium text-ok">Ready: Talaria found a browser it can use.</p>
           ) : (
             <>
               <p>Run this in the Talaria folder, then restart Talaria:</p>

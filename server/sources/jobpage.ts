@@ -95,7 +95,11 @@ export function readableText(html: string): string {
 /** Render a JavaScript-only page in a hidden browser and return its HTML. */
 export async function renderHtml(url: string): Promise<string> {
   const { chromium } = await import('playwright');
-  const b = await chromium.launch({ headless: true });
+  // Playwright's own Chromium if it was downloaded, otherwise Chrome or Edge from this computer.
+  const b = await chromium
+    .launch({ headless: true })
+    .catch(() => chromium.launch({ headless: true, channel: 'chrome' }))
+    .catch(() => chromium.launch({ headless: true, channel: 'msedge' }));
   try {
     const ctx = await b.newContext({ userAgent: UA, locale: 'en-US' });
     const page = await ctx.newPage();

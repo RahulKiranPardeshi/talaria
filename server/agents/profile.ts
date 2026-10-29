@@ -51,6 +51,12 @@ Return ONLY a JSON object with exactly these keys:
     "locations": [string],       // cities/countries implied by the resume
     "remote": string,            // one of: remote_only, remote_or_hybrid, any, onsite
     "includeKeywords": [string]  // 3–8 domains/technologies they'd likely want
+  },
+  "ideas": {                     // offered as one-click suggestions; specific to THIS person's field, never generic
+    "roles": [string],           // 6–10 more job titles worth a look: adjacent roles their background also fits
+    "topics": [string],          // 6–10 domains, products or technologies they might love working on (1–3 words each)
+    "dealBreakers": [string],    // 4–6 short phrases a job ad in their field may contain that people like them often rule out (e.g. "night shifts", "commission only", "on-call rotation")
+    "locations": [string]        // 4–6 cities, countries or regions that hire their profile and fit where they live or have studied
   }
 }
 
@@ -118,6 +124,12 @@ export async function buildProfileFromResume(resumeText: string, fileName?: stri
       resumeText,
       resumeFileName: fileName,
       latexSource,
+      ideas: {
+        roles: strArr(raw.ideas?.roles, 10, 80),
+        topics: strArr(raw.ideas?.topics, 10, 40),
+        dealBreakers: strArr(raw.ideas?.dealBreakers, 6, 40),
+        locations: strArr(raw.ideas?.locations, 6, 80),
+      },
     };
     const s = raw.suggested || {};
     const current = getPreferences();
