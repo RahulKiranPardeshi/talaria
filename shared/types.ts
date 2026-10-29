@@ -95,7 +95,9 @@ export interface Profile {
   resumeText: string;
   resumeFileName?: string;
   latexSource?: string; // the user's own LaTeX resume, kept as the template for tailoring
-  story?: string; // who you are beyond the resume, in your words: the material for cover letters
+  story?: string; // who you are beyond the resume, woven by Hermes from your answers: the material for cover letters
+  storyAnswers?: Record<string, string>; // your answers to the story questions, keyed by question id
+  storyWovenAt?: string; // when Hermes last wove the answers into the story (unset: the story is the answers as written)
   ideas?: ProfileIdeas; // suggestions from the resume, offered (never filled in) across the app
   updatedAt?: string;
 }
@@ -335,7 +337,7 @@ export interface Job {
   updatedAt: string;
 }
 
-export type RunKind = 'profile' | 'scout' | 'score' | 'analyze' | 'tailor' | 'summary' | 'submit' | 'test' | 'hermes_web' | 'chat' | 'mail';
+export type RunKind = 'profile' | 'story' | 'scout' | 'score' | 'analyze' | 'tailor' | 'summary' | 'submit' | 'test' | 'hermes_web' | 'chat' | 'mail';
 
 export interface AgentRun {
   id: string;

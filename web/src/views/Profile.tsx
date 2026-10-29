@@ -1,12 +1,13 @@
 import * as React from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
-import { BookmarkCheck, Check, ChevronDown, FileText, Globe, GraduationCap, List, Loader2, Plus, Rss, Save, Search, Sparkles, Trash2, UploadCloud, X } from 'lucide-react';
+import { BookmarkCheck, Check, ChevronDown, FileText, Globe, GraduationCap, List, Loader2, Plus, RefreshCw, Rss, Save, Search, Sparkles, Trash2, UploadCloud, X } from 'lucide-react';
 import type { AnswerBankItem, CustomBoard, ExperienceItem, Preferences, Profile, SourceId, TargetCompany } from '@shared/types';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import { cn, timeAgo } from '@/lib/utils';
 import { Badge, Button, Card, ChipInput, Dialog, EmptyState, Field, Input, SectionTitle, Segmented, SuggestInput, Switch, Textarea } from '@/components/ui';
 import { countryOptions, placeOptions } from '@/lib/suggest';
+import { composeStory, STORY_QUESTIONS } from '@shared/story';
 import { PreferencesForm, SkipCompaniesField } from './Onboarding';
 import { toast } from 'sonner';
 import { dismissLookup, lookUpCompany, receiveCompanies, useLookups, type Lookup } from '@/lib/companyLookups';
@@ -68,6 +69,142 @@ function SaveBar({ dirty, saving, onSave, onReset }: { dirty: boolean; saving: b
 
 // ---------------- profile ----------------
 
+/**
+ * The answers your story starts from: the saved ones, else your onboarding answers, else an older
+ * free-text story kept whole under "Anything else" so nothing is lost.
+ */
+function startingAnswers(profile: Profile, onboarding?: Record<string, string>): { answers: Record<string, string>; carriedOver: boolean } {
+  if (profile.storyAnswers) return { answers: profile.storyAnswers, carriedOver: false };
+  const story = profile.story?.trim() || '';
+  if (onboarding && Object.values(onboarding).some(a => a?.trim()) && (!story || composeStory(onboarding) === story)) return { answers: onboarding, carriedOver: false };
+  return { answers: story ? { more: story } : {}, carriedOver: Boolean(story) };
+}
+
+const clean = (a: Record<string, string>) => JSON.stringify(Object.fromEntries(STORY_QUESTIONS.map(q => [q.id, (a[q.id] || '').trim()]).filter(([, v]) => v)));
+
+/** Your story as questions you answer; Hermes weaves the answers into the story your cover letters use. */
+function StorySection() {
+  const profile = useApp(s => s.profile)!;
+  const onboarding = useApp(s => s.settings?.onboarding?.story);
+  const runs = useApp(s => s.runs);
+  const lastRun = runs.filter(r => r.kind === 'story').sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
+  const weaving = lastRun?.status === 'queued' || lastRun?.status === 'running';
+  const start = React.useMemo(() => startingAnswers(profile, onboarding), [profile.storyAnswers]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [answers, setAnswers] = React.useState(start.answers);
+  const [saving, setSaving] = React.useState(false);
+  const [sorting, setSorting] = React.useState<'idle' | 'sorting' | 'failed'>('idle');
+  const touched = React.useRef(false);
+  const dirty = clean(answers) !== clean(profile.storyAnswers ?? {});
+  // Saved answers coming back from the server replace the form only while you haven't typed in it.
+  React.useEffect(() => {
+    if (!touched.current) setAnswers(start.answers);
+  }, [start]);
+  const type = (id: string, text: string) => {
+    touched.current = true;
+    setAnswers(a => ({ ...a, [id]: text }));
+  };
+
+  // A story written before the questions existed: Hermes sorts your own sentences into them, once.
+  const asked = React.useRef(false);
+  React.useEffect(() => {
+    if (!start.carriedOver || profile.storyAnswers || asked.current) return;
+    asked.current = true;
+    setSorting('sorting');
+    api
+      .post('/api/profile/story/sort', {}, { quiet: true })
+      .then(() => setSorting('idle'))
+      .catch(() => setSorting('failed'));
+  }, [start.carriedOver, profile.storyAnswers]);
+  const sortedFromStory = Boolean(profile.storyAnswers && !profile.storyWovenAt && profile.story && composeStory(profile.storyAnswers) !== profile.story.trim());
+
+  const save = async (again = false) => {
+    setSaving(true);
+    try {
+      await api.post('/api/profile/story', { answers, again });
+      toast.success(again ? 'Hermes is weaving your story again' : 'Saved. Hermes is weaving your answers into your story.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const words = (profile.story || '').trim().split(/\s+/).filter(Boolean).length;
+  const failed = !weaving && lastRun?.status === 'error' && !profile.storyWovenAt;
+  return (
+    <section>
+      <SectionTitle>Your story</SectionTitle>
+      <Card className="space-y-5 p-5">
+        <p className="text-[12.5px] leading-relaxed text-muted">
+          Your resume says what you did; this is who you are. Answer in your own words, like you'd talk to a friend. Hermes weaves your answers into your story, and your cover letters are written from it.
+          It never adds anything you didn't say, so the more real detail you give, the more personal every letter gets.
+        </p>
+        {sorting === 'sorting' && !touched.current && (
+          <p className="flex items-center gap-2 rounded-lg bg-gold-soft/40 px-3 py-2 text-[12px] leading-relaxed text-ink-2">
+            <Loader2 className="size-3.5 shrink-0 animate-spin text-gold" /> Hermes is sorting your earlier story into these questions, using your own sentences…
+          </p>
+        )}
+        {sorting === 'failed' && !profile.storyAnswers && (
+          <p className="rounded-lg bg-gold-soft/40 px-3 py-2 text-[12px] leading-relaxed text-ink-2">
+            Hermes couldn't sort your earlier story right now, so all of it is under <strong className="font-semibold">Anything else</strong> and nothing is lost. Move parts of it into the questions if you like, then save.
+          </p>
+        )}
+        {sortedFromStory && !touched.current && (
+          <p className="rounded-lg bg-gold-soft/40 px-3 py-2 text-[12px] leading-relaxed text-ink-2">
+            Hermes sorted your earlier story into these questions, using your own sentences. Anything that didn't fit a question is under <strong className="font-semibold">Anything else</strong>. Check them, then save to weave your story.
+          </p>
+        )}
+        {STORY_QUESTIONS.map(q => (
+          <Field
+            key={q.id}
+            label={
+              <span className="flex items-center gap-1.5">
+                {q.q} {q.optional && <span className="text-[11px] font-normal text-faint">optional</span>}
+              </span>
+            }
+            hint={q.hint}
+          >
+            <Textarea value={answers[q.id] || ''} disabled={sorting === 'sorting'} onChange={e => type(q.id, e.target.value)} rows={q.id === 'more' ? 4 : 3} placeholder={q.placeholder} />
+          </Field>
+        ))}
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-[11.5px] text-faint">Kept when you replace your resume.</span>
+          <Button
+            variant="primary"
+            loading={saving}
+            // Sorted but not woven yet counts as something to save.
+            disabled={sorting === 'sorting' || !(dirty || (!profile.storyWovenAt && Object.values(answers).some(a => a?.trim())))}
+            icon={<Sparkles className="size-3.5 text-gold" />}
+            onClick={() => save(!dirty)}
+          >
+            Save and weave my story
+          </Button>
+        </div>
+      </Card>
+
+      <Card className="mt-3 p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-[13.5px] font-semibold text-ink">Your story, as your cover letters see it</div>
+            <div className="mt-0.5 text-[12px] text-muted">
+              {weaving
+                ? 'Hermes is weaving your answers…'
+                : profile.storyWovenAt
+                  ? `Woven by Hermes ${timeAgo(profile.storyWovenAt, false)} · ${words} words`
+                  : profile.story
+                    ? 'Not woven yet: this is your story as you wrote it.'
+                    : 'Answer the questions above and save to see it here.'}
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" disabled={weaving || saving || dirty || !profile.story} title={dirty ? 'Save your changes first' : undefined} icon={weaving ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />} onClick={() => save(true)}>
+            Weave again
+          </Button>
+        </div>
+        {failed && <p className="mt-3 rounded-lg bg-bad-soft px-3 py-2 text-[12px] text-bad">Hermes couldn't weave it ({lastRun.error?.split('\n')[0]}). Until it can, cover letters use your answers as written.</p>}
+        {profile.story && <p className={cn('mt-4 text-[13.5px] leading-relaxed whitespace-pre-wrap text-ink-2', weaving && 'opacity-50')}>{profile.story}</p>}
+      </Card>
+    </section>
+  );
+}
+
 function ProfileEditor() {
   const stored = useApp(s => s.profile)!;
   const [p, setP] = React.useState<Profile>(stored);
@@ -82,7 +219,9 @@ function ProfileEditor() {
   const save = async () => {
     setSaving(true);
     try {
-      await api.put('/api/profile', p);
+      // Your story has its own save, and Hermes may be weaving it right now: leave it out of this one.
+      const { story: _story, storyAnswers: _answers, storyWovenAt: _woven, ...rest } = p;
+      await api.put('/api/profile', rest);
       toast.success('Profile saved');
     } finally {
       setSaving(false);
@@ -143,25 +282,7 @@ function ProfileEditor() {
         <input ref={fileRef} type="file" accept=".pdf,.docx,.txt,.md,.tex,.zip" className="hidden" onChange={e => replace(e.target.files?.[0])} />
       </Card>
 
-      <section>
-        <SectionTitle>Your story</SectionTitle>
-        <Card className="space-y-3 p-5">
-          <p className="text-[12.5px] leading-relaxed text-muted">
-            Your cover letters are built from this, not from your resume. Write it like you'd talk: who you are outside work, what you make or do for fun, what you care about, why you
-            do this work, moments that shaped you, products you love using. Hermes never invents anything here, so the more real detail you give, the more personal every letter gets.
-          </p>
-          <Textarea
-            value={p.story || ''}
-            onChange={e => up({ story: e.target.value })}
-            rows={9}
-            placeholder="e.g. I grew up taking apart radios with my dad, which is still how I learn things: by building them. On weekends I make small music toys in Unity and play board games with friends (that's where Deed & Dice came from)…"
-          />
-          <div className="flex justify-between text-[11.5px] text-faint">
-            <span>Kept when you replace your resume. Saved with the Save button below.</span>
-            <span>{(p.story || '').trim().split(/\s+/).filter(Boolean).length} words</span>
-          </div>
-        </Card>
-      </section>
+      <StorySection />
 
       <section>
         <SectionTitle>Basics</SectionTitle>

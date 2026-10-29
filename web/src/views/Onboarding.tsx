@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { Button, ChipInput, Field, Input, Segmented, SuggestInput, Switch, Textarea } from '@/components/ui';
 import { countryOptions, placeOptions } from '@/lib/suggest';
 import { findPlace } from '@shared/places';
+import { REQUIRED_STORY_QUESTIONS, STORY_QUESTIONS } from '@shared/story';
 import { Logo } from '@/components/brand';
 import { useElapsed } from '@/components/drawer/hooks';
 import { BOARDS, SourcesEditor } from '@/views/Profile';
@@ -455,35 +456,26 @@ function ResumeStep({ kicker, next, back }: Nav) {
 
 // ---------------- 4. Story ----------------
 
-const STORY_QUESTIONS = [
-  { id: 'why', q: 'Why do you do this kind of work?', hint: 'What pulled you in? A moment, a person or a project that shaped you.', placeholder: 'e.g. I started by fixing the family computer, then built a website for my school club…' },
-  { id: 'proud', q: 'What are you proudest of?', hint: "Something you made or did, at work or not, and why it mattered to you.", placeholder: 'e.g. Leading the redesign of our checkout, which halved support tickets…' },
-  { id: 'next', q: 'What do you want next, and why now?', hint: 'The problems, team or kind of company you want to be part of.', placeholder: "e.g. A small team where I can own a product end to end, because…" },
-  { id: 'life', q: 'Who are you outside work?', hint: 'What you make or do for fun, what you care about, products you love using.', placeholder: 'e.g. I bake sourdough, run on weekends and keep a sketchbook of app ideas…' },
-];
-
-const composeStory = (answers: Record<string, string> = {}) =>
-  STORY_QUESTIONS.map(q => answers[q.id]?.trim())
-    .filter(Boolean)
-    .join('\n\n');
+/** Hand your answers to Hermes to weave into your story (it skips answers it has already woven). */
+const weaveStory = (answers: Record<string, string>) => api.post('/api/profile/story', { answers }, { quiet: true }).catch(() => {});
 
 function StoryStep({ kicker, next, back }: Nav) {
   const stored = useApp(s => s.settings?.onboarding?.story);
   const hasProfile = useApp(s => Boolean(s.profile));
   const [answers, setAnswers] = React.useState<Record<string, string>>(stored || {});
-  const filled = STORY_QUESTIONS.filter(q => answers[q.id]?.trim()).length;
+  const filled = REQUIRED_STORY_QUESTIONS.filter(q => answers[q.id]?.trim()).length;
 
   const save = async (then: () => void) => {
     await saveProgress({ story: answers });
-    const story = composeStory(answers);
-    if (hasProfile && story) await api.put('/api/profile', { story }, { quiet: true }).catch(() => {});
+    // Still reading the resume? The answers are woven when you confirm your profile.
+    if (hasProfile && Object.values(answers).some(a => a?.trim())) weaveStory(answers);
     then();
   };
 
   return (
     <div>
       <StepHeader kicker={kicker} title="Tell us your story.">
-        Your resume says what you did. This is who you are, and your cover letters are written from it. Answer like you'd talk to a friend; a few honest sentences beat a polished paragraph. Skip anything you like.
+        Your resume says what you did. This is who you are: Hermes weaves your answers into your story, and your cover letters are written from it. Answer like you'd talk to a friend; a few honest sentences beat a polished paragraph. Skip anything you like.
       </StepHeader>
 
       <div className="space-y-5">
@@ -496,7 +488,7 @@ function StoryStep({ kicker, next, back }: Nav) {
 
       <StepFooter back={() => save(back)}>
         <SkipLink onClick={() => save(next)} />
-        <NextButton disabled={filled < STORY_QUESTIONS.length} title={filled < STORY_QUESTIONS.length ? `${filled} of ${STORY_QUESTIONS.length} answered` : undefined} onClick={() => save(next)}>
+        <NextButton disabled={filled < REQUIRED_STORY_QUESTIONS.length} title={filled < REQUIRED_STORY_QUESTIONS.length ? `${filled} of ${REQUIRED_STORY_QUESTIONS.length} answered` : undefined} onClick={() => save(next)}>
           Next
         </NextButton>
       </StepFooter>
@@ -890,8 +882,8 @@ function ProfileCheckStep({ kicker, next, back, go }: Nav) {
     if (!p) return;
     setSaving(true);
     try {
-      const story = composeStory(answers);
-      await api.put('/api/profile', { name: p.name, headline: p.headline, email: p.email, phone: p.phone, location: p.location, summary: p.summary, skills: p.skills, ...(story ? { story } : {}) });
+      await api.put('/api/profile', { name: p.name, headline: p.headline, email: p.email, phone: p.phone, location: p.location, summary: p.summary, skills: p.skills });
+      if (answers && Object.values(answers).some(a => a?.trim())) weaveStory(answers);
       next();
     } finally {
       setSaving(false);
@@ -1061,7 +1053,7 @@ function LaunchStep({ kicker, back, go }: Nav) {
   const [autopilot, setAutopilot] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
   const boards = BOARDS.filter(b => prefs.sources[b.id]).length + (prefs.customBoards || []).filter(b => b.enabled).length;
-  const answered = STORY_QUESTIONS.filter(q => story[q.id]?.trim()).length;
+  const answered = REQUIRED_STORY_QUESTIONS.filter(q => story[q.id]?.trim()).length;
 
   const start = async () => {
     setBusy(true);
@@ -1079,7 +1071,7 @@ function LaunchStep({ kicker, back, go }: Nav) {
   type Row = { label: string; value: string; edit: Screen; show?: boolean };
   const rows = ([
     { label: 'You', value: profile ? [profile.name, profile.headline].filter(Boolean).join(' · ') : 'Hermes is still reading your resume', edit: 'you' },
-    { label: 'Your story', value: answered ? `${answered} of ${STORY_QUESTIONS.length} questions answered` : 'Not written yet (Hermes will ask when it writes a cover letter)', edit: 'story' },
+    { label: 'Your story', value: answered ? `${answered} of ${REQUIRED_STORY_QUESTIONS.length} questions answered` : 'Not written yet (Hermes will ask when it writes a cover letter)', edit: 'story' },
     { label: 'Looking for', value: kinds.join(', ') || 'Full-time roles', edit: 'kind' },
     { label: 'Roles', value: `${prefs.roles.join(', ') || 'None yet'} · ${prefs.seniority.map(s => SENIORITY.find(x => x.value === s)?.label).join(', ')}`, edit: 'roles', show: jobs },
     { label: 'Where', value: [prefs.locations.join(', ') || 'Anywhere', REMOTE_LABEL[prefs.remote], prefs.needsSponsorship ? 'needs sponsorship' : null].filter(Boolean).join(' · '), edit: 'where', show: jobs },

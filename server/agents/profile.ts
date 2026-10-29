@@ -153,8 +153,8 @@ export async function buildProfileFromResume(resumeText: string, fileName?: stri
     for (const key of confirmed) delete suggested[key];
     const preferences = setPreferences(suggested);
     // Your story is yours, not the resume's: it survives replacing the resume.
-    const story = getProfile()?.story;
-    if (story) profile.story = story;
+    const { story, storyAnswers, storyWovenAt } = getProfile() || {};
+    if (story) Object.assign(profile, { story, storyAnswers, storyWovenAt });
     setProfile(profile);
     finishRun(h, true, `${profile.experience.length} roles · ${profile.skills.length} skills`);
     return { profile, preferences };

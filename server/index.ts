@@ -13,6 +13,7 @@ import { analyzeJob, answerQuestions, applyGapNotes, chatWithHermes, coverage, r
 import { followUpOnDiscoveries, startAutopilot } from './agents/autopilot.ts';
 import { checkBeforeApply, checkLiveness } from './agents/liveness.ts';
 import { generateReport } from './agents/report.ts';
+import { saveStory, sortStory } from './agents/story.ts';
 import { coverLetterPdf, resumePdf } from './lib/resumePdf.tsx';
 import { hydrateFromUrl, verifyBoard } from './sources/index.ts';
 import { detectBoard } from './sources/boards.ts';
@@ -145,6 +146,27 @@ app.put('/api/profile', (req, res) => {
   const current = store.getProfile();
   const next = { ...(current || {}), ...(req.body as Partial<Profile>) } as Profile;
   res.json(store.setProfile(next));
+});
+
+// Your answers to the story questions: saved now, woven into your story by Hermes in the background.
+app.post('/api/profile/story', (req, res) => {
+  const answers = req.body?.answers;
+  if (!answers || typeof answers !== 'object') return res.status(400).json({ error: 'answers are required' });
+  try {
+    saveStory(Object.fromEntries(Object.entries(answers).map(([k, v]) => [k, String(v ?? '')])), req.body?.again === true);
+    res.json(store.getProfile());
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// A story written before the questions existed, sorted into them from your own sentences (once).
+app.post('/api/profile/story/sort', async (_req, res) => {
+  try {
+    res.json(await sortStory());
+  } catch (err: any) {
+    res.status(400).json({ error: `Hermes couldn't sort your story: ${err.message.split('\n')[0]}` });
+  }
 });
 
 app.put('/api/preferences', (req, res) => {
