@@ -4,6 +4,7 @@ import { askJson, callHermes, finishRun, isJobPaused, isPausedError, PAUSED, pau
 import { compileLatex, findPdflatex, splitLatex, validateBody } from '../lib/latex.ts';
 import { applyEdits, MAX_BULLETS, parseSlots, plainLatex, noEmDash, sanitizeEdits, similarity, strictClean, textHasKeyword, type SlotEdits, type Slots } from '../lib/latexSlots.ts';
 import { toast } from '../lib/events.ts';
+import { cleanText, humanizeLines, type HumanLine } from '../lib/humanize.ts';
 import { findAnswer, getJob, getPreferences, getProfile, getSettings, listAnswers, listJobs, newId, nextOrder, now, updateJob, upsertAnswer } from '../lib/store.ts';
 import { RULES_GROWTH, RULES_NO_FABRICATION, clamp, jobBrief, oneOf, preferencesBrief, profileBrief, str, strArr } from './common.ts';
 import { isStaleDraft, resumeHash } from '../../shared/resume.ts';
@@ -477,6 +478,42 @@ function renderSlots(slots: Slots, fromDraft = false): string {
 interface LatexResult extends Pick<Packet, 'latex' | 'latexStatus' | 'latexError' | 'latexPages'> {
   edits?: SlotEdits;
   slots?: Slots;
+  humanized?: number;
+}
+
+function humanizeContext(job: Job, h: RunHandle, priority: number, keywords: string[] = [], latex: boolean) {
+  return { keywords: [...new Set([...(job.analysis?.keywords || []), ...keywords])], voice: getProfile()?.story, latex, handle: h, priority, model: getSettings().hermes.tailorModel || undefined };
+}
+
+/** The humanizer pass over the tailored slot text (summary and bullets), before it's compiled. */
+async function humanizeEdits(job: Job, edits: SlotEdits, h: RunHandle, priority: number, keywords?: string[]): Promise<{ edits: SlotEdits; rewritten: number }> {
+  setWork(job.id, 'tailor', { state: 'running', step: 'Making it read like you' });
+  const lines: HumanLine[] = [];
+  if (edits.summary) lines.push({ id: 'summary', group: 'summary', text: edits.summary });
+  for (const [rid, bullets] of Object.entries(edits.roles)) bullets.forEach((b, i) => lines.push({ id: `${rid}.${i + 1}`, group: rid, text: b }));
+  const { texts, rewritten } = await humanizeLines(lines, humanizeContext(job, h, priority, keywords, true));
+  return {
+    edits: {
+      summary: edits.summary && texts.summary,
+      skills: Object.fromEntries(Object.entries(edits.skills).map(([k, v]) => [k, cleanText(v, true)])),
+      roles: Object.fromEntries(Object.entries(edits.roles).map(([rid, bullets]) => [rid, bullets.map((b, i) => texts[`${rid}.${i + 1}`] ?? b)])),
+    },
+    rewritten,
+  };
+}
+
+/** The same pass over the built-in resume, when it's the one that becomes the PDF. */
+async function humanizeResume(job: Job, r: TailoredResume, h: RunHandle, priority: number, keywords?: string[]): Promise<number> {
+  setWork(job.id, 'tailor', { state: 'running', step: 'Making it read like you' });
+  const lines: HumanLine[] = [];
+  if (r.summary) lines.push({ id: 'summary', group: 'summary', text: r.summary });
+  r.experience.forEach((e, i) => e.bullets.forEach((b, j) => lines.push({ id: `e${i}.${j + 1}`, group: `e${i}`, text: b })));
+  r.projects.forEach((p, i) => p.bullets.forEach((b, j) => lines.push({ id: `p${i}.${j + 1}`, group: `p${i}`, text: b })));
+  const { texts, rewritten } = await humanizeLines(lines, humanizeContext(job, h, priority, keywords, false));
+  if (r.summary) r.summary = texts.summary;
+  r.experience.forEach((e, i) => (e.bullets = e.bullets.map((b, j) => texts[`e${i}.${j + 1}`] ?? b)));
+  r.projects.forEach((p, i) => (p.bullets = p.bullets.map((b, j) => texts[`p${i}.${j + 1}`] ?? b)));
+  return rewritten;
 }
 
 async function tailorLatex(job: Job, resume: TailoredResume, h: RunHandle, opts: { priority: number; keywords?: string[]; instructions?: string; refine?: boolean }): Promise<LatexResult> {
@@ -505,6 +542,7 @@ async function tailorLatex(job: Job, resume: TailoredResume, h: RunHandle, opts:
   let extra: string | undefined;
   let lastError = '';
   let lastEdits: SlotEdits | null = null;
+  let humanized = 0;
   for (let attempt = 0; attempt < 2; attempt++) {
     const raw = await askJson<any>({
       prompt: SLOT_PROMPT({
@@ -529,20 +567,22 @@ async function tailorLatex(job: Job, resume: TailoredResume, h: RunHandle, opts:
       skills: raw?.skills && typeof raw.skills === 'object' ? raw.skills : {},
       roles: raw?.roles && typeof raw.roles === 'object' ? raw.roles : {},
     };
-    const { edits, report } = sanitizeEdits(slots, proposal, {
+    const { edits: sane, report } = sanitizeEdits(slots, proposal, {
       hasNotes: Boolean(gapNotesBlock(job)),
       allowSkills: opts.keywords,
       // Skills from your own resume top up a line Hermes cut too short (matched by line theme).
       skillPool: Object.fromEntries((parseSlots(splitLatex(profile.latexSource)?.body || '').skills || []).map(s => [s.label.toLowerCase(), s.items])),
       known: [profile.resumeText, profile.skills?.join(', '), slots.skills.map(s => s.items).join(', '), gapNotesBlock(job), answersBlock(job)].filter(Boolean).join('\n'),
     });
-    lastEdits = edits;
     for (const f of report.fixes) h.log(`Fixed: ${f}`);
+    const { edits, rewritten } = await humanizeEdits(job, sane, h, opts.priority, opts.keywords);
+    humanized = rewritten;
+    lastEdits = edits;
     const tex = parts.head + applyEdits(parts.body, slots, edits) + parts.tail;
-    if (!findPdflatex()) return { latex: tex, latexStatus: 'uncompiled', edits, slots };
+    if (!findPdflatex()) return { latex: tex, latexStatus: 'uncompiled', edits, slots, humanized };
     h.log('Compiling your LaTeX resume');
     const c = await compileLatex(tex);
-    if (c.ok) return { latex: tex, latexStatus: 'compiled', latexPages: c.pages, edits, slots };
+    if (c.ok) return { latex: tex, latexStatus: 'compiled', latexPages: c.pages, edits, slots, humanized };
     lastError = c.error || 'Compile failed';
     h.log(`LaTeX error, retrying: ${lastError.split('\n')[0]}`);
     extra = `Your text broke the LaTeX build with this error — avoid the offending characters/commands:\n${lastError}`;
@@ -558,7 +598,7 @@ async function tailorLatex(job: Job, resume: TailoredResume, h: RunHandle, opts:
     const tex = parts.head + applyEdits(parts.body, slots, strict) + parts.tail;
     h.log('Compiling a cleaned-up version');
     const c = await compileLatex(tex);
-    if (c.ok) return { latex: tex, latexStatus: 'compiled', latexPages: c.pages, edits: strict, slots };
+    if (c.ok) return { latex: tex, latexStatus: 'compiled', latexPages: c.pages, edits: strict, slots, humanized };
   }
 
   // A revision that won't compile leaves the current draft exactly as it was.
@@ -767,7 +807,7 @@ export async function writeCoverLetter(job: Job, resume: TailoredResume, h: RunH
     timeoutSec: 240,
     model: getSettings().hermes.tailorModel || undefined,
   });
-  const text = noEmDash(str(raw?.coverLetter, 5000));
+  const text = noEmDash(cleanText(str(raw?.coverLetter, 5000)));
   if (!text) throw new Error('Hermes returned an empty cover letter.');
   return text;
 }
@@ -1056,11 +1096,13 @@ export function prepareApplication(id: string, opts: PrepareOptions & { priority
         packet.coverLetter = await writeCoverLetter(job, resume, h, { priority: opts.priority ?? 1, instructions: opts.instructions, previous: opts.refine ? job.packet?.coverLetter : undefined });
       }
 
+      let humanized = 0;
       if (profile.latexSource) {
         setWork(id, 'tailor', { state: 'running', step: 'Writing your LaTeX resume' });
         try {
           const lx = await tailorLatex(job, resume, h, { priority: opts.priority ?? 1, keywords: opts.keywords, instructions: opts.instructions && opts.keywords?.length ? keywordBrief(a.keywords, opts.keywords) : opts.instructions, refine: opts.refine && !opts.fresh });
-          const { edits, slots, ...latexFields } = lx;
+          const { edits, slots, humanized: h1, ...latexFields } = lx;
+          humanized = h1 || 0;
           Object.assign(packet, latexFields);
           if (edits && slots && packet.latexStatus !== 'error') {
             packet.resume = syncResumeFromSlots(packet.resume, slots, edits);
@@ -1077,6 +1119,9 @@ export function prepareApplication(id: string, opts: PrepareOptions & { priority
         }
         if (packet.latexStatus === 'error') h.log(`LaTeX version failed (${packet.latexError}); the built-in PDF is used instead.`);
       }
+      // The LaTeX text was humanized before it compiled; the built-in resume gets the pass when it's the PDF.
+      if (!profile.latexSource || packet.latexStatus === 'error') humanized = await humanizeResume(job, packet.resume, h, opts.priority ?? 1, opts.keywords);
+      if (humanized) packet.changes.push({ what: `Reworded ${humanized} line${humanized === 1 ? '' : 's'} that read as AI-written`, why: 'Stock AI wording or a repeated sentence pattern; facts, numbers and keywords stayed the same' });
 
       // After the interview, the drafting pass may only add what an application form needs
       // (sponsorship, salary, start date…); anything else it "wonders" isn't worth blocking on.
