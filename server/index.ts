@@ -462,7 +462,8 @@ app.post('/api/jobs/:id/restore', (req, res) => {
 app.post('/api/jobs/:id/finalize', async (req, res) => {
   const j = store.getJob(req.params.id);
   if (!j?.packet) return job404(res);
-  const open = j.questions.filter(q => q.required && !q.answer?.trim()).length;
+  // Same rule as the UI's pendingQuestions: a question you left to Hermes ("Draft without answering") isn't open.
+  const open = j.questions.filter(q => q.required && !q.answer?.trim() && !q.skipped).length;
   if (open) return res.status(400).json({ error: `Answer the ${open} open question${open > 1 ? 's' : ''} first.` });
   // One careful look at the posting first, so you never land on a closed form.
   if (!req.body?.skipLiveCheck) {

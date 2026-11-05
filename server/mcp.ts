@@ -16,7 +16,7 @@ const score = (j: Job) => j.analysis?.score ?? j.quick?.score;
 const text = (t: string) => ({ content: [{ type: 'text' as const, text: t }] });
 
 function line(j: Job) {
-  const pending = j.questions.filter(q => q.required && !q.answer).length;
+  const pending = j.questions.filter(q => q.required && !q.answer?.trim() && !q.skipped).length;
   return `- [${j.id}] ${j.title} @ ${j.company} · ${j.location} · fit ${score(j) ?? '?'} · ${j.status}${pending ? ` · ${pending} question(s) waiting` : ''}${j.appliedAt ? ` · applied ${j.appliedAt.slice(0, 10)}` : ''}`;
 }
 
