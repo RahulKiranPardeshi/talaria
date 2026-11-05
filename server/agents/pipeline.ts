@@ -5,6 +5,7 @@ import { compileLatex, findPdflatex, splitLatex, validateBody } from '../lib/lat
 import { applyEdits, MAX_BULLETS, parseSlots, plainLatex, noEmDash, sanitizeEdits, similarity, strictClean, textHasKeyword, type SlotEdits, type Slots } from '../lib/latexSlots.ts';
 import { toast } from '../lib/events.ts';
 import { cleanText, humanizeLines, type HumanLine } from '../lib/humanize.ts';
+import { weaveKeywords } from '../lib/weave.ts';
 import { findAnswer, getJob, getPreferences, getProfile, getSettings, listAnswers, listJobs, newId, nextOrder, now, updateJob, upsertAnswer } from '../lib/store.ts';
 import { RULES_GROWTH, RULES_NO_FABRICATION, clamp, jobBrief, oneOf, preferencesBrief, profileBrief, str, strArr } from './common.ts';
 import { isStaleDraft, resumeHash } from '../../shared/resume.ts';
@@ -479,6 +480,58 @@ interface LatexResult extends Pick<Packet, 'latex' | 'latexStatus' | 'latexError
   edits?: SlotEdits;
   slots?: Slots;
   humanized?: number;
+  weave?: Woven;
+}
+
+interface Woven {
+  added: string[];
+  unfit: string[];
+}
+
+/** What the candidate wrote themselves: the only evidence a keyword may be claimed on. */
+function evidence(job: Job): string {
+  const p = getProfile();
+  const ownSkills = p?.latexSource ? parseSlots(splitLatex(p.latexSource)?.body || '').skills.map(s => s.items).join(', ') : '';
+  return [p?.resumeText, p?.skills?.join(', '), ownSkills, p?.story, gapNotesBlock(job), answersBlock(job)].filter(Boolean).join('\n');
+}
+
+function weaveContext(job: Job, h: RunHandle, priority: number, latex: boolean) {
+  return { keywords: job.analysis?.keywords || [], skip: job.packet?.keywordCoverage?.unfit, job: jobBrief(job, 4000), evidence: evidence(job), latex, handle: h, priority, model: getSettings().hermes.tailorModel || undefined };
+}
+
+/** The keyword layer over the tailored slot text (summary, skills lines, bullets), before the humanizer. */
+async function weaveEdits(job: Job, edits: SlotEdits, h: RunHandle, priority: number): Promise<{ edits: SlotEdits } & Woven> {
+  setWork(job.id, 'tailor', { state: 'running', step: 'Working in missing keywords' });
+  const lines: HumanLine[] = [];
+  if (edits.summary) lines.push({ id: 'summary', group: 'summary', text: edits.summary });
+  for (const [sid, text] of Object.entries(edits.skills)) lines.push({ id: sid, group: 'skills', text });
+  for (const [rid, bullets] of Object.entries(edits.roles)) bullets.forEach((b, i) => lines.push({ id: `${rid}.${i + 1}`, group: rid, text: b }));
+  const { texts, added, unfit } = await weaveKeywords(lines, weaveContext(job, h, priority, true));
+  return {
+    edits: {
+      summary: edits.summary && texts.summary,
+      skills: Object.fromEntries(Object.keys(edits.skills).map(sid => [sid, texts[sid]])),
+      roles: Object.fromEntries(Object.entries(edits.roles).map(([rid, bullets]) => [rid, bullets.map((b, i) => texts[`${rid}.${i + 1}`] ?? b)])),
+    },
+    added,
+    unfit,
+  };
+}
+
+/** The same layer over the built-in resume, when it's the one that becomes the PDF. */
+async function weaveResume(job: Job, r: TailoredResume, h: RunHandle, priority: number): Promise<Woven> {
+  setWork(job.id, 'tailor', { state: 'running', step: 'Working in missing keywords' });
+  const lines: HumanLine[] = [];
+  if (r.summary) lines.push({ id: 'summary', group: 'summary', text: r.summary });
+  r.skills.forEach((g, i) => lines.push({ id: `k${i}`, group: 'skills', text: g.items.join(', ') }));
+  r.experience.forEach((e, i) => e.bullets.forEach((b, j) => lines.push({ id: `e${i}.${j + 1}`, group: `e${i}`, text: b })));
+  r.projects.forEach((p, i) => p.bullets.forEach((b, j) => lines.push({ id: `p${i}.${j + 1}`, group: `p${i}`, text: b })));
+  const { texts, added, unfit } = await weaveKeywords(lines, weaveContext(job, h, priority, false));
+  if (r.summary) r.summary = texts.summary;
+  r.skills.forEach((g, i) => (g.items = texts[`k${i}`].split(',').map(x => x.trim()).filter(Boolean)));
+  r.experience.forEach((e, i) => (e.bullets = e.bullets.map((b, j) => texts[`e${i}.${j + 1}`] ?? b)));
+  r.projects.forEach((p, i) => (p.bullets = p.bullets.map((b, j) => texts[`p${i}.${j + 1}`] ?? b)));
+  return { added, unfit };
 }
 
 function humanizeContext(job: Job, h: RunHandle, priority: number, keywords: string[] = [], latex: boolean) {
@@ -543,6 +596,7 @@ async function tailorLatex(job: Job, resume: TailoredResume, h: RunHandle, opts:
   let lastError = '';
   let lastEdits: SlotEdits | null = null;
   let humanized = 0;
+  let weave: Woven = { added: [], unfit: [] };
   for (let attempt = 0; attempt < 2; attempt++) {
     const raw = await askJson<any>({
       prompt: SLOT_PROMPT({
@@ -575,14 +629,16 @@ async function tailorLatex(job: Job, resume: TailoredResume, h: RunHandle, opts:
       known: [profile.resumeText, profile.skills?.join(', '), slots.skills.map(s => s.items).join(', '), gapNotesBlock(job), answersBlock(job)].filter(Boolean).join('\n'),
     });
     for (const f of report.fixes) h.log(`Fixed: ${f}`);
-    const { edits, rewritten } = await humanizeEdits(job, sane, h, opts.priority, opts.keywords);
+    const { edits: woven, ...w } = await weaveEdits(job, sane, h, opts.priority);
+    weave = w;
+    const { edits, rewritten } = await humanizeEdits(job, woven, h, opts.priority, opts.keywords);
     humanized = rewritten;
     lastEdits = edits;
     const tex = parts.head + applyEdits(parts.body, slots, edits) + parts.tail;
-    if (!findPdflatex()) return { latex: tex, latexStatus: 'uncompiled', edits, slots, humanized };
+    if (!findPdflatex()) return { latex: tex, latexStatus: 'uncompiled', edits, slots, humanized, weave };
     h.log('Compiling your LaTeX resume');
     const c = await compileLatex(tex);
-    if (c.ok) return { latex: tex, latexStatus: 'compiled', latexPages: c.pages, edits, slots, humanized };
+    if (c.ok) return { latex: tex, latexStatus: 'compiled', latexPages: c.pages, edits, slots, humanized, weave };
     lastError = c.error || 'Compile failed';
     h.log(`LaTeX error, retrying: ${lastError.split('\n')[0]}`);
     extra = `Your text broke the LaTeX build with this error — avoid the offending characters/commands:\n${lastError}`;
@@ -598,7 +654,7 @@ async function tailorLatex(job: Job, resume: TailoredResume, h: RunHandle, opts:
     const tex = parts.head + applyEdits(parts.body, slots, strict) + parts.tail;
     h.log('Compiling a cleaned-up version');
     const c = await compileLatex(tex);
-    if (c.ok) return { latex: tex, latexStatus: 'compiled', latexPages: c.pages, edits: strict, slots, humanized };
+    if (c.ok) return { latex: tex, latexStatus: 'compiled', latexPages: c.pages, edits: strict, slots, humanized, weave };
   }
 
   // A revision that won't compile leaves the current draft exactly as it was.
@@ -860,7 +916,24 @@ export function restoreVersion(id: string, index: number) {
 
 // ====================== CHAT ======================
 
-const CHAT_PROMPT = (o: { role: string; job: string; fit: string; draft: string; answers: string; history: string; message: string }) => `You are Hermes, a sharp, warm career agent working WITH one candidate on their application for ${o.role}. You share a workspace: they see the job posting, this chat, and the live resume and cover letter.
+const CHAT_PROMPT = (o: { name: string; role: string; job: string; fit: string; status: string; hunt: string; draft: string; answers: string; history: string; message: string }) => `You are Hermes, ${o.name ? `${o.name}'s` : 'the candidate\'s'} career agent and sparring partner, working WITH them on their application for ${o.role}. You share a workspace: they see the job posting, this chat, and the live resume and cover letter. This chat is a real conversation, not a command line: they may ask for changes, but they also just talk to you, ask how things are going, think out loud, vent, or want your honest opinion.
+
+HOW YOU TALK
+- Like a smart colleague who has been on this with them all along: warm, direct, specific, a little personality. Use their first name now and then, not every message.
+- Match their energy and length. "hey" or "thanks" gets a short, natural line back. "Where are we?" or "what's left?" gets a real rundown from WHERE THINGS STAND below: what's done, what's in progress, what's waiting on them, what comes next. A strategy question gets a thought-through answer.
+- Never open with "Sure", "Certainly", "Of course", "Great question" or "Okay". Never just say "On it." Say what you're actually going to do and why, in a sentence.
+- Be honest. If the fit is weak, say so kindly and say what would help. If something failed or is stuck, say it plainly. Only state facts that are in this prompt; if you don't know (e.g. whether the company replied), say you don't know.
+- You can use light markdown: **bold** for the key point, and "- " bullet lists when listing several items (status rundowns, options, next steps). Short paragraphs. No headings, no tables.
+- When it fits, end with one natural next step or question that moves things forward. Not every message.
+
+CANDIDATE
+${o.name || '(name unknown)'}
+
+WHERE THINGS STAND WITH THIS APPLICATION (live, as of now)
+${o.status}
+
+THEIR JOB HUNT OVERALL
+${o.hunt}
 
 JOB (excerpt)
 ${o.job}
@@ -874,7 +947,7 @@ ${o.draft}
 WHAT THE CANDIDATE HAS TOLD YOU FOR THIS APPLICATION
 ${o.answers || '(nothing yet)'}
 
-RECENT CONVERSATION
+RECENT CONVERSATION (oldest first)
 ${o.history || '(none)'}
 
 THE CANDIDATE JUST SAID
@@ -885,12 +958,98 @@ Decide what to do. Do the SMALLEST thing that answers what they asked:
 - "revise": they want a change to the resume and/or cover letter and you have what you need. Write a precise brief for the writer in "instructions" (what to change and where, plus any facts they just gave you) and set "target".
 - "draft": there is no draft yet and they want you to go ahead, or they gave you enough to start.
 - "ask": you need a fact or a preference to do it well, or the request is ambiguous in a way that changes the result. Ask 1 to 3 short questions instead of guessing.
-- "none": a question or comment that only needs a reply (e.g. "why did you drop X?", "what's my weakest point here?", "how should I address that?"). Answer it, and if a change would help, offer it in one sentence and let them say yes. Never revise in response to a question: only revise when they explicitly ask to change the resume or the cover letter. When unsure between "write" or "none" and "revise", don't revise.
+- "none": conversation, a question or a comment that only needs a reply (e.g. "how's it going?", "what's left before I can apply?", "why did you drop X?", "what's my weakest point here?", "how should I prep for the interview?", "I'm nervous about this one", "thanks!"). Answer it properly, and if a change would help, offer it in one sentence and let them say yes. Never revise in response to a question: only revise when they explicitly ask to change the resume or the cover letter. When unsure between "write" or "none" and "revise", don't revise.
+If they say yes to a change you offered in the RECENT CONVERSATION, that counts as asking for it: do it.
 
 Return ONLY JSON:
 {"reply": string, "action": "write"|"revise"|"draft"|"ask"|"none", "text": string, "question": string, "target": "resume"|"cover"|"both", "instructions": string, "questions": [{"question": string, "why": string, "kind": "text"|"longtext"|"choice"|"yesno"|"number", "options": [string], "suggested": string, "reusable": boolean}]}
-"reply": 1 to 4 sentences, first person, plain and specific: say what you'll do, or answer honestly (for "write", one short line introducing the text).
+"reply": your chat message, first person, in the voice above. As long as the message deserves and no longer: one line for small talk, up to about 180 words for a status rundown or advice. For "revise"/"draft", say what you're about to change and that you'll tell them when it's on the right. For "ask", a sentence of context before the questions. For "write", one short line introducing the text.
 "text": only for "write": the finished text and nothing else, no em dashes. No em dashes. Never promise to add experience they haven't described.`;
+
+/** "3 hours ago", "2 days ago": how Hermes says when something happened. */
+function ago(iso?: string) {
+  if (!iso) return 'unknown';
+  const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  if (!Number.isFinite(m)) return 'unknown';
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} hour${h > 1 ? 's' : ''} ago`;
+  const d = Math.round(h / 24);
+  return `${d} day${d > 1 ? 's' : ''} ago`;
+}
+
+const STATUS_WORDS: Record<JobStatus, string> = {
+  discovered: 'Discovered (not started)',
+  preparing: 'Preparing (Hermes is drafting)',
+  needs_input: 'Needs input (draft or questions waiting on the candidate)',
+  applied: 'Applied',
+  interviewing: 'Interviewing',
+  offer: 'Offer',
+  archived: 'Archived',
+};
+
+/** What's done, what's in progress and what's waiting, so Hermes can answer "where are we?" with facts. */
+function statusForPrompt(job: Job): string {
+  const out: string[] = [];
+  out.push(`Board column: ${STATUS_WORDS[job.status] || job.status}, since ${ago(job.statusChangedAt)}${job.archivedReason ? ` (reason: ${job.archivedReason})` : ''}.`);
+  if (job.deadline) out.push(`Application deadline: ${job.deadline}.`);
+  if (job.liveCheck) out.push(`Posting check ${ago(job.liveCheck.at)}: ${job.liveCheck.live === true ? 'still open' : job.liveCheck.live === false ? 'looks CLOSED' : 'could not tell'}${job.liveCheck.reason ? ` (${job.liveCheck.reason})` : ''}.`);
+  out.push(job.analysis ? `Fit analysis: done, ${job.analysis.score}/100 (${job.analysis.verdict}).` : 'Fit analysis: not done yet.');
+
+  if (job.interview && !job.interview.doneAt && !job.packet) out.push(`Before drafting, you asked the candidate questions ${ago(job.interview.askedAt)}; the first draft waits on their answers (or on them saying "just draft it").`);
+  if (job.packet) {
+    const p = job.packet;
+    const versions = (job.packetHistory?.length || 0) + 1;
+    out.push(`Draft: resume and cover letter exist. Current version "${p.note || 'Draft'}" written ${ago(p.generatedAt)}; ${versions} version${versions > 1 ? 's' : ''} so far.`);
+    if (p.keywordCoverage) out.push(`ATS keyword match: ${p.keywordCoverage.before}% before tailoring, ${p.keywordCoverage.after}% now.${p.keywordCoverage.missing?.length ? ` Still missing: ${p.keywordCoverage.missing.slice(0, 10).join(', ')}.` : ''}${p.keywordCoverage.unfit?.length ? ` Tried and don't fit their experience: ${p.keywordCoverage.unfit.slice(0, 8).join(', ')}.` : ''}`);
+    if (p.latexStatus) out.push(`Resume PDF: ${p.latexStatus === 'compiled' ? `compiled${p.latexPages ? `, ${p.latexPages} page${p.latexPages > 1 ? 's' : ''}` : ''}` : p.latexStatus === 'error' ? `failed to compile (${(p.latexError || '').split('\n')[0].slice(0, 160)})` : 'not compiled'}.`);
+    out.push(p.approvedAt ? `Candidate approved this draft ${ago(p.approvedAt)}.` : 'Candidate has not approved/finalized this draft yet.');
+    if (p.answers?.length) out.push(`Saved form answers: ${p.answers.map(a => `"${a.question.slice(0, 60)}"`).join(', ')}.`);
+    if (isStaleDraft(job, getProfile())) out.push('Their base resume changed after this draft was written, so the draft may be out of date.');
+  } else if (!(job.interview && !job.interview.doneAt)) out.push('Draft: none yet.');
+
+  const open = job.questions.filter(q => !q.answer?.trim() && !q.skipped);
+  const answered = job.questions.filter(q => q.answer?.trim()).length;
+  if (job.questions.length) out.push(`Your questions to them: ${answered} answered, ${open.length} open${open.length ? `: ${open.map(q => `"${q.question}"${q.required ? ' (required before applying)' : ''}`).join('; ')}` : ''}.`);
+
+  const running = (Object.entries(job.work) as [TaskKind, NonNullable<Job['work'][TaskKind]>][]).filter(([k, t]) => k !== 'chat' && t);
+  for (const [k, t] of running) {
+    const what = { analyze: 'Fit analysis', tailor: 'Drafting/revising the resume and letter', submit: 'Submitting the application', chat: 'Chat' }[k];
+    if (t.state === 'running' || t.state === 'queued') out.push(`IN PROGRESS RIGHT NOW: ${what}, ${t.state}${t.step ? `, step: ${t.step}` : ''} (started ${ago(t.at)}).`);
+    else if (t.state === 'error') out.push(`LAST ATTEMPT FAILED: ${what}${t.error ? `: ${t.error.split('\n')[0].slice(0, 200)}` : ''} (${ago(t.at)}).`);
+  }
+  if (job.paused) out.push(`The candidate PAUSED you on this job ${ago(job.paused.at)}.`);
+
+  if (job.appliedAt) out.push(`Applied ${ago(job.appliedAt)}${job.appliedVia ? ` (${job.appliedVia === 'auto' ? 'Talaria submitted it' : job.appliedVia === 'assisted' ? 'Talaria filled the form, they submitted' : 'they applied themselves'})` : ''}.`);
+  else out.push('Not applied yet.');
+  if (job.outcome) out.push(`Latest reply from the company (${ago(job.outcome.at)}): ${job.outcome.kind}: ${job.outcome.summary}`);
+  else if (job.mail?.length) out.push(`Emails about it: ${job.mail.slice(-3).map(m => `${m.kind} (${ago(m.at)}): ${m.summary}`).join(' | ')}`);
+  else if (job.appliedAt) out.push('No reply from the company found in their inbox yet.');
+  if (job.notes?.trim()) out.push(`Candidate's own notes: ${job.notes.trim().slice(0, 400)}`);
+
+  const recent = (job.timeline || []).slice(-8).map(e => `- ${ago(e.at)}: ${e.text}`);
+  if (recent.length) out.push(`Recent activity:\n${recent.join('\n')}`);
+  return out.join('\n');
+}
+
+/** A one-paragraph view of the whole search, for "how's my hunt going?". */
+function huntForPrompt(current: Job): string {
+  const jobs = listJobs();
+  const count = (s: JobStatus) => jobs.filter(j => j.status === s).length;
+  const week = Date.now() - 7 * 86400000;
+  const appliedWeek = jobs.filter(j => j.appliedAt && Date.parse(j.appliedAt) > week).length;
+  const others = jobs
+    .filter(j => j.id !== current.id && ['needs_input', 'interviewing', 'offer'].includes(j.status))
+    .slice(0, 6)
+    .map(j => `${j.title} at ${j.company} (${j.status.replace('_', ' ')})`);
+  return [
+    `${jobs.length} jobs tracked: ${count('discovered')} discovered, ${count('preparing')} preparing, ${count('needs_input')} waiting on them, ${count('applied')} applied, ${count('interviewing')} interviewing, ${count('offer')} offers, ${count('archived')} archived. ${appliedWeek} applied in the last 7 days.`,
+    others.length ? `Other live ones: ${others.join('; ')}.` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
 
 function draftForPrompt(job: Job) {
   if (!job.packet) return '(no draft yet: you interviewed the candidate first)';
@@ -921,15 +1080,27 @@ export async function chatWithHermes(id: string, text: string) {
   setWork(id, 'chat', { state: 'queued', step: 'Reading your message' });
   try {
     const a = job.analysis;
+    // The message just sent is already the last entry; it goes in separately as THE CANDIDATE JUST SAID.
     const history = (job.chat || [])
-      .slice(-12)
-      .map(m => `${m.from === 'you' ? 'Candidate' : 'Hermes'}: ${m.text}${m.questionIds?.length ? ` [asked: ${m.questionIds.map(qid => job.questions.find(q => q.id === qid)?.question).filter(Boolean).join(' / ')}]` : ''}`)
+      .slice(-25, -1)
+      .map(
+        m =>
+          `[${ago(m.at)}] ${m.from === 'you' ? 'Candidate' : m.kind === 'status' ? 'System' : 'Hermes'}: ${m.text}` +
+          (m.changes?.length ? ` [changes: ${m.changes.map(c => c.what).join('; ')}]` : '') +
+          (m.snippet ? ` [wrote: ${m.snippet.slice(0, 200)}${m.snippet.length > 200 ? '…' : ''}]` : '') +
+          (m.questionIds?.length ? ` [asked: ${m.questionIds.map(qid => job.questions.find(q => q.id === qid)?.question).filter(Boolean).join(' / ')}]` : ''),
+      )
       .join('\n');
     const raw = await askJson<any>({
       prompt: CHAT_PROMPT({
+        name: (getProfile()?.name || '').trim(),
         role: `${job.title} at ${job.company}`,
+        status: statusForPrompt(job),
+        hunt: huntForPrompt(job),
         job: jobBrief(job, 3500),
-        fit: a ? `Fit ${a.score}/100 (${a.verdict}). ${a.summary} Gaps: ${a.whyNo.map(x => x.point).join('; ')}` : '(not analysed)',
+        fit: a
+          ? `Fit ${a.score}/100 (${a.verdict}). ${a.summary}\nStrengths: ${a.whyYes.map(x => x.point).join('; ')}\nGaps: ${a.whyNo.map(x => `${x.point} (${x.severity})`).join('; ')}\nCould improve: ${a.improve.map(x => x.action).join('; ')}`
+          : '(not analysed)',
         draft: draftForPrompt(job),
         answers: [answersBlock(job), gapNotesBlock(job)].filter(Boolean).join('\n'),
         history,
@@ -962,7 +1133,15 @@ export async function chatWithHermes(id: string, text: string) {
       pushChat(j, {
         from: 'hermes',
         kind: questions.length ? 'questions' : 'reply',
-        text: noEmDash(str(raw?.reply, 1500)) || (action === 'revise' ? 'On it.' : snippet ? 'Here you go:' : 'Okay.'),
+        text:
+          noEmDash(str(raw?.reply, 3000)) ||
+          (action === 'revise'
+            ? "Making that change now. I'll tell you here when the new version is on the right."
+            : action === 'draft'
+              ? "Starting your draft now. I'll ping you here when it's ready."
+              : snippet
+                ? 'Here you go:'
+                : "Sorry, I lost my train of thought there. Could you say that again?"),
         questionIds: questions.length ? questions.map(q => q.id) : undefined,
         snippet: snippet || undefined,
       });
@@ -1097,12 +1276,14 @@ export function prepareApplication(id: string, opts: PrepareOptions & { priority
       }
 
       let humanized = 0;
+      let woven: Woven = { added: [], unfit: [] };
       if (profile.latexSource) {
         setWork(id, 'tailor', { state: 'running', step: 'Writing your LaTeX resume' });
         try {
           const lx = await tailorLatex(job, resume, h, { priority: opts.priority ?? 1, keywords: opts.keywords, instructions: opts.instructions && opts.keywords?.length ? keywordBrief(a.keywords, opts.keywords) : opts.instructions, refine: opts.refine && !opts.fresh });
-          const { edits, slots, humanized: h1, ...latexFields } = lx;
+          const { edits, slots, humanized: h1, weave: w1, ...latexFields } = lx;
           humanized = h1 || 0;
+          woven = w1 || woven;
           Object.assign(packet, latexFields);
           if (edits && slots && packet.latexStatus !== 'error') {
             packet.resume = syncResumeFromSlots(packet.resume, slots, edits);
@@ -1119,8 +1300,14 @@ export function prepareApplication(id: string, opts: PrepareOptions & { priority
         }
         if (packet.latexStatus === 'error') h.log(`LaTeX version failed (${packet.latexError}); the built-in PDF is used instead.`);
       }
-      // The LaTeX text was humanized before it compiled; the built-in resume gets the pass when it's the PDF.
-      if (!profile.latexSource || packet.latexStatus === 'error') humanized = await humanizeResume(job, packet.resume, h, opts.priority ?? 1, opts.keywords);
+      // The LaTeX text got the keyword and humanizer layers before it compiled; the built-in resume gets them when it's the PDF.
+      if (!profile.latexSource || packet.latexStatus === 'error') {
+        woven = await weaveResume(job, packet.resume, h, opts.priority ?? 1);
+        humanized = await humanizeResume(job, packet.resume, h, opts.priority ?? 1, opts.keywords);
+        const cov = coverage(a.keywords, resumeText(packet.resume));
+        packet.keywordCoverage = { before: before.pct, after: cov.pct, missing: cov.missing };
+      }
+      if (woven.added.length) packet.changes.push({ what: `Worked in ${woven.added.length} missing keyword${woven.added.length === 1 ? '' : 's'}: ${woven.added.join(', ')}`, why: 'The posting asks for them and your own resume, notes or answers back them up' });
       if (humanized) packet.changes.push({ what: `Reworded ${humanized} line${humanized === 1 ? '' : 's'} that read as AI-written`, why: 'Stock AI wording or a repeated sentence pattern; facts, numbers and keywords stayed the same' });
 
       // After the interview, the drafting pass may only add what an application form needs
@@ -1148,6 +1335,11 @@ export function prepareApplication(id: string, opts: PrepareOptions & { priority
       } else if (opts.refine && job.packet?.keywordCoverage?.unfit?.length && packet.keywordCoverage) {
         packet.keywordCoverage.unfit = job.packet.keywordCoverage.unfit.filter(k => packet.keywordCoverage!.missing.includes(k));
       }
+      // Keywords the keyword layer found you can't back up aren't offered again either.
+      if (woven.unfit.length && packet.keywordCoverage) {
+        const cov = packet.keywordCoverage;
+        cov.unfit = [...new Set([...(cov.unfit || []), ...woven.unfit])].filter(k => cov.missing.includes(k));
+      }
       const firstDraft = !job.packet;
       if (isJobPaused(id)) throw new Error(PAUSED);
       const updated = updateJob(
@@ -1173,13 +1365,13 @@ export function prepareApplication(id: string, opts: PrepareOptions & { priority
                 ? `Worked in the keywords that fit${cov ? `: ATS match is now ${cov.after}%` : ''}.`
                 : opts.instructions
                   ? packet.changes.length
-                    ? 'Done. Here is what changed:'
-                    : 'Done. The updated version is on the right.'
-                  : 'Worked your answers in.',
+                    ? "Done, the new version is on the right. Here's what I changed:"
+                    : "Done, the updated version is on the right. Have a look and tell me if it's not quite there."
+                  : 'Worked your answers in. Have a look on the right and tell me what you think.',
             changes: packet.changes.length ? packet.changes : undefined,
           });
           const open = added.filter(q => !q.answer);
-          if (open.length) pushChat(j, { from: 'hermes', kind: 'questions', text: 'A couple of things I need from you before this can go out:', questionIds: added.map(q => q.id) });
+          if (open.length) pushChat(j, { from: 'hermes', kind: 'questions', text: 'While writing that I hit a couple of things only you can tell me. Fill these in when you can:', questionIds: added.map(q => q.id) });
           if (j.status === 'preparing') {
             j.status = 'needs_input';
             j.statusChangedAt = now();

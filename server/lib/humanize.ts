@@ -140,24 +140,30 @@ export function findTells(lines: HumanLine[], keywords: string[]): Map<string, s
 const numbers = (s: string): string[] => plainLatex(s).match(/\d+(?:[.,]\d+)?/g) || [];
 // Names, tools and acronyms mid-sentence (BMW, Kotlin, Jetpack Compose): the specifics a rewrite must keep.
 const names = (s: string) => plainLatex(s).split(/\s+/).slice(1).map(w => w.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9+#]+$/g, '')).filter(w => /^[A-Z0-9]/.test(w) && /[A-Za-z]/.test(w) && w.length > 1);
-const wordCount = (s: string) => plainLatex(s).split(/\s+/).filter(Boolean).length;
+export const wordCount = (s: string) => plainLatex(s).split(/\s+/).filter(Boolean).length;
 
-/** A rewrite is kept only if nothing factual moved and it has fewer tells than the line it replaces. */
-function acceptable(orig: string, next: string, group: string, keywords: string[], latex: boolean, openerFlagged: boolean): boolean {
+/** Nothing factual moved: every number, name and job keyword of the original is still there, and the LaTeX stays valid. */
+export function keepsFacts(orig: string, next: string, keywords: string[], latex: boolean): boolean {
   if (!next.trim()) return false;
-  const n = wordCount(next);
-  const o = wordCount(orig);
-  if (n < o * 0.6 || n > Math.max(o * 1.3, o + 4) || n > (group === 'summary' ? 85 : 36)) return false;
   const plain = plainLatex(next);
-  if (numbers(orig).some(x => !numbers(next).includes(x))) return false;
+  if (numbers(orig).some(x => !numbers(next).includes(x)) || numbers(next).some(x => !numbers(orig).includes(x))) return false;
   if (names(orig).some(w => !new RegExp(`(^|[^A-Za-z0-9])${w.replace(/[+#.]/g, '\\$&')}([^A-Za-z0-9]|$)`).test(plain))) return false;
   if (keywords.some(k => textHasKeyword(orig, k) && !textHasKeyword(next, k))) return false;
-  if (vague(next) && !vague(orig)) return false;
   if (latex) {
     if (!bracesOk(next)) return false;
     if (/\\(?!textbf\{|[&%$#_{}])[a-zA-Z]+/.test(next)) return false;
     if ((next.match(/\\textbf\{/g) || []).length > Math.max(1, (orig.match(/\\textbf\{/g) || []).length)) return false;
   }
+  return true;
+}
+
+/** A rewrite is kept only if nothing factual moved and it has fewer tells than the line it replaces. */
+function acceptable(orig: string, next: string, group: string, keywords: string[], latex: boolean, openerFlagged: boolean): boolean {
+  const n = wordCount(next);
+  const o = wordCount(orig);
+  if (n < o * 0.6 || n > Math.max(o * 1.3, o + 4) || n > (group === 'summary' ? 85 : 36)) return false;
+  if (!keepsFacts(orig, next, keywords, latex)) return false;
+  if (vague(next) && !vague(orig)) return false;
   const sameOpener = openerFlagged && opener(orig) === opener(next);
   return lineTells(next, keywords).length + (sameOpener ? 1 : 0) < lineTells(orig, keywords).length + (openerFlagged ? 1 : 0);
 }
