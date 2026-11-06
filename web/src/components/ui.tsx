@@ -3,7 +3,8 @@ import * as RDialog from '@radix-ui/react-dialog';
 import * as RTooltip from '@radix-ui/react-tooltip';
 import * as RSwitch from '@radix-ui/react-switch';
 import * as RMenu from '@radix-ui/react-dropdown-menu';
-import { Check, Copy, Loader2, X } from 'lucide-react';
+import * as RContext from '@radix-ui/react-context-menu';
+import { Check, ChevronRight, Copy, Loader2, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn, copyText } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -402,3 +403,54 @@ export function MenuItem({ children, onSelect, icon, danger, disabled }: { child
 }
 
 export const MenuSeparator = () => <RMenu.Separator className="mx-1 my-1 h-px bg-line" />;
+
+// ---------------- Context menu (right click) ----------------
+
+const menuPanel = 'z-[60] min-w-[220px] max-w-[280px] rounded-xl bg-raised p-1 shadow-pop';
+const menuRow =
+  'flex h-8 cursor-default items-center gap-2.5 rounded-lg px-2.5 text-[13px] outline-none select-none data-[disabled]:opacity-40 data-[highlighted]:bg-ink/[0.05] data-[state=open]:bg-ink/[0.05] dark:data-[highlighted]:bg-white/[0.07] dark:data-[state=open]:bg-white/[0.07]';
+
+export const ContextMenu = RContext.Root;
+export const ContextMenuTrigger = RContext.Trigger;
+
+export function ContextMenuContent({ children }: { children: React.ReactNode }) {
+  return (
+    <RContext.Portal>
+      {/* React events bubble out of portals: keep clicks, keys and pointer presses from reaching the card underneath. */}
+      <RContext.Content collisionPadding={8} className={menuPanel} onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+        {children}
+      </RContext.Content>
+    </RContext.Portal>
+  );
+}
+
+export function ContextMenuItem({ children, onSelect, icon, danger, disabled, hint }: { children: React.ReactNode; onSelect?: () => void; icon?: React.ReactNode; danger?: boolean; disabled?: boolean; hint?: string }) {
+  return (
+    <RContext.Item disabled={disabled} onSelect={onSelect} className={cn(menuRow, danger ? 'text-bad' : 'text-ink-2 data-[highlighted]:text-ink')}>
+      <span className={cn('grid size-4 shrink-0 place-items-center [&>svg]:size-4', danger ? 'text-bad' : 'text-muted')}>{icon}</span>
+      <span className="flex-1 truncate">{children}</span>
+      {hint && <span className="pl-3 text-[11.5px] text-faint">{hint}</span>}
+    </RContext.Item>
+  );
+}
+
+export function ContextMenuSub({ label, icon, children }: { label: React.ReactNode; icon?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <RContext.Sub>
+      <RContext.SubTrigger className={cn(menuRow, 'text-ink-2 data-[highlighted]:text-ink')}>
+        <span className="grid size-4 shrink-0 place-items-center text-muted [&>svg]:size-4">{icon}</span>
+        <span className="flex-1 truncate">{label}</span>
+        <ChevronRight className="size-3.5 text-faint" />
+      </RContext.SubTrigger>
+      <RContext.Portal>
+        <RContext.SubContent sideOffset={4} collisionPadding={8} className={menuPanel}>
+          {children}
+        </RContext.SubContent>
+      </RContext.Portal>
+    </RContext.Sub>
+  );
+}
+
+export const ContextMenuLabel = ({ children }: { children: React.ReactNode }) => <RContext.Label className="truncate px-2.5 pt-1.5 pb-1 text-[11.5px] font-medium text-faint">{children}</RContext.Label>;
+
+export const ContextMenuSeparator = () => <RContext.Separator className="mx-1 my-1 h-px bg-line" />;

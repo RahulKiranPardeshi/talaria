@@ -24,6 +24,7 @@ import { moveJob, startScout, useApp } from '@/lib/store';
 import { navigate, openJob } from '@/lib/router';
 import { cn, fitScore, greeting, isWorking, pendingQuestions, STATUS_META, timeAgo } from '@/lib/utils';
 import { JobCard } from '@/components/JobCard';
+import { CardContextMenu } from '@/components/CardMenu';
 import { Button, Menu, MenuContent, MenuItem, MenuTrigger, Segmented, Tooltip } from '@/components/ui';
 import { Logo } from '@/components/brand';
 import { AddJobDialog } from '@/components/AddJobDialog';
@@ -453,20 +454,22 @@ function SortableCard({ job, hidden }: { job: Job; hidden: boolean }) {
       exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
       transition={{ type: 'spring', bounce: 0.15, duration: 0.45 }}
     >
-      <div
-        ref={setNodeRef}
-        style={{ transform: CSS.Translate.toString(transform), transition }}
-        {...attributes}
-        {...listeners}
-        onClick={() => openJob(job.id)}
-        onKeyDown={e => {
-          if (e.key === 'Enter') openJob(job.id);
-          else listeners?.onKeyDown?.(e as any);
-        }}
-        className="cursor-pointer rounded-[14px] outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
-      >
-        <JobCard job={job} dragging={hidden} />
-      </div>
+      <CardContextMenu job={job}>
+        <div
+          ref={setNodeRef}
+          style={{ transform: CSS.Translate.toString(transform), transition }}
+          {...attributes}
+          {...listeners}
+          onClick={() => openJob(job.id)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') openJob(job.id);
+            else listeners?.onKeyDown?.(e as any);
+          }}
+          className="cursor-pointer rounded-[14px] outline-none focus-visible:ring-2 focus-visible:ring-accent/50 data-[state=open]:ring-2 data-[state=open]:ring-accent/40"
+        >
+          <JobCard job={job} dragging={hidden} />
+        </div>
+      </CardContextMenu>
     </motion.div>
   );
 }
