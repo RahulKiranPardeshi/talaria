@@ -16,6 +16,7 @@ import { JobDrawer } from '@/components/JobDrawer';
 import { CommandPalette } from '@/components/CommandPalette';
 import { Onboarding } from '@/views/Onboarding';
 import { BoardTour } from '@/components/BoardTour';
+import { HermesCleanup } from '@/components/HermesCleanup';
 import { Logo } from '@/components/brand';
 import { useTheme } from '@/lib/theme';
 
@@ -67,6 +68,7 @@ export function App() {
             <CommandPalette />
             <ActivityPanel />
             <BoardTour />
+            <HermesCleanup />
           </motion.div>
         )}
       </AnimatePresence>

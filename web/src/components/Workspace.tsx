@@ -1,6 +1,7 @@
 // The collaborative workspace: the job on the left, a conversation with Hermes in the middle and
 // the live resume and cover letter on the right. Opens for jobs Hermes is working on or waiting on you.
 import * as React from 'react';
+import { aiProviderLabel } from '@shared/aiProviders';
 import * as RDialog from '@radix-ui/react-dialog';
 import { AnimatePresence, motion } from 'motion/react';
 import { AlertTriangle, ArrowUp, Check, ChevronDown, Download, ExternalLink, FileText, Hourglass, Lightbulb, MapPin, PanelLeftClose, PanelLeftOpen, PartyPopper, Pencil, RefreshCw, Send, Sparkles, SquareAsterisk, SquareStack, Wand2, X } from 'lucide-react';
@@ -371,7 +372,8 @@ function Thinking({ job }: { job: Job }) {
   const step = workingStep(job) || 'Working';
   const since = [job.work.chat, job.work.tailor, job.work.submit, job.work.analyze].find(t => t && (t.state === 'running' || t.state === 'queued'))?.at;
   const elapsed = useElapsed(since, true);
-  const pausedUntil = useApp(s => s.hermes.rateLimitedUntil);
+  const pausedUntil = useApp(s => s.ai.rateLimitedUntil);
+  const provider = useApp(s => s.ai.provider);
   const paused = pausedUntil && Date.parse(pausedUntil) > Date.now() ? new Date(pausedUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2.5">
@@ -379,7 +381,7 @@ function Thinking({ job }: { job: Job }) {
       <div className="agent-sheen inline-flex items-center gap-2.5 border border-gold/15 bg-gold-soft/60 px-3.5 py-2.5 text-[13px] font-medium text-gold">
         {paused ? (
           <>
-            <Hourglass className="size-3.5" /> Paused by Copilot's rate limit, resumes {paused}
+            <Hourglass className="size-3.5" /> Paused by {aiProviderLabel(provider)}'s rate limit, resumes {paused}
           </>
         ) : (
           <>

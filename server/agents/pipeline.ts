@@ -1,6 +1,6 @@
 import { usableSuggestion } from '../../shared/suggestion.ts';
 import type { AgentQuestion, Analysis, ArchiveReason, ChatMessage, ExperienceItem, Job, JobStatus, Packet, PrepareOptions, QuestionKind, TaskKind, TailoredResume } from '../../shared/types.ts';
-import { askJson, callHermes, finishRun, isJobPaused, isPausedError, PAUSED, pauseJobCalls, resumeJobCalls, startRun, type RunHandle } from '../lib/hermes.ts';
+import { askJson, callAI, finishRun, isJobPaused, isPausedError, PAUSED, pauseJobCalls, resumeJobCalls, startRun, type RunHandle } from '../lib/ai/index.ts';
 import { compileLatex, findPdflatex, splitLatex, validateBody } from '../lib/latex.ts';
 import { applyEdits, MAX_BULLETS, parseSlots, plainLatex, noEmDash, sanitizeEdits, similarity, strictClean, textHasKeyword, type SlotEdits, type Slots } from '../lib/latexSlots.ts';
 import { toast } from '../lib/events.ts';
@@ -125,7 +125,7 @@ export function analyzeJob(id: string, opts: { force?: boolean; handle?: RunHand
     setWork(id, 'analyze', { state: 'queued', step: undefined, error: undefined });
     try {
       h.log('Comparing your background with the requirements');
-      const model = getSettings().hermes.model;
+      const model = getSettings().ai.model;
       const raw = await askJson<any>({
         prompt: ANALYZE_PROMPT(profileBrief(profile), preferencesBrief(getPreferences()), jobBrief(job), gapNotesBlock(job)),
         handle: h,
@@ -387,7 +387,7 @@ async function tailorLatexWholeBody(job: Job, resume: TailoredResume, h: RunHand
   let lastError = '';
   let best: { tex: string; pages?: number } | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await callHermes({ prompt: LATEX_PROMPT({ ...base, extra }), handle: h, timeoutSec: 300, priority, model: getSettings().hermes.tailorModel || undefined });
+    const res = await callAI({ prompt: LATEX_PROMPT({ ...base, extra }), handle: h, timeoutSec: 300, priority, model: getSettings().ai.tailorModel || undefined });
     const body = extractBody(res.text);
     if (!body) {
       lastError = 'Hermes did not return a LaTeX body.';
@@ -496,7 +496,7 @@ function evidence(job: Job): string {
 }
 
 function weaveContext(job: Job, h: RunHandle, priority: number, latex: boolean) {
-  return { keywords: job.analysis?.keywords || [], skip: job.packet?.keywordCoverage?.unfit, job: jobBrief(job, 4000), evidence: evidence(job), latex, handle: h, priority, model: getSettings().hermes.tailorModel || undefined };
+  return { keywords: job.analysis?.keywords || [], skip: job.packet?.keywordCoverage?.unfit, job: jobBrief(job, 4000), evidence: evidence(job), latex, handle: h, priority, model: getSettings().ai.tailorModel || undefined };
 }
 
 /** The keyword layer over the tailored slot text (summary, skills lines, bullets), before the humanizer. */
@@ -535,7 +535,7 @@ async function weaveResume(job: Job, r: TailoredResume, h: RunHandle, priority: 
 }
 
 function humanizeContext(job: Job, h: RunHandle, priority: number, keywords: string[] = [], latex: boolean) {
-  return { keywords: [...new Set([...(job.analysis?.keywords || []), ...keywords])], voice: getProfile()?.story, latex, handle: h, priority, model: getSettings().hermes.tailorModel || undefined };
+  return { keywords: [...new Set([...(job.analysis?.keywords || []), ...keywords])], voice: getProfile()?.story, latex, handle: h, priority, model: getSettings().ai.tailorModel || undefined };
 }
 
 /** The humanizer pass over the tailored slot text (summary and bullets), before it's compiled. */
@@ -614,7 +614,7 @@ async function tailorLatex(job: Job, resume: TailoredResume, h: RunHandle, opts:
       handle: h,
       timeoutSec: 300,
       priority: opts.priority,
-      model: getSettings().hermes.tailorModel || undefined,
+      model: getSettings().ai.tailorModel || undefined,
     });
     const proposal: SlotEdits = {
       summary: typeof raw?.summary === 'string' ? raw.summary : undefined,
@@ -758,7 +758,7 @@ async function interviewCandidate(id: string, h: RunHandle, priority: number): P
     handle: h,
     priority,
     timeoutSec: 240,
-    model: getSettings().hermes.tailorModel || undefined,
+    model: getSettings().ai.tailorModel || undefined,
   });
   const qs = normQuestions(raw?.questions, 'interview');
   const open = qs.filter(q => !q.answer);
@@ -861,7 +861,7 @@ export async function writeCoverLetter(job: Job, resume: TailoredResume, h: RunH
     handle: h,
     priority: opts.priority,
     timeoutSec: 240,
-    model: getSettings().hermes.tailorModel || undefined,
+    model: getSettings().ai.tailorModel || undefined,
   });
   const text = noEmDash(cleanText(str(raw?.coverLetter, 5000)));
   if (!text) throw new Error('Hermes returned an empty cover letter.');
@@ -1235,7 +1235,7 @@ export function prepareApplication(id: string, opts: PrepareOptions & { priority
         }),
         handle: h,
         timeoutSec: 360,
-        model: getSettings().hermes.tailorModel || undefined,
+        model: getSettings().ai.tailorModel || undefined,
         priority: opts.priority ?? 1,
       });
 
@@ -1263,7 +1263,7 @@ export function prepareApplication(id: string, opts: PrepareOptions & { priority
         changes: (Array.isArray(raw.changes) ? raw.changes : []).slice(0, 8).map((x: any) => ({ what: str(x?.what ?? x, 300), why: str(x?.why, 300) })).filter((x: any) => x.what),
         keywordCoverage: { before: before.pct, after: after.pct, missing: after.missing },
         generatedAt: now(),
-        model: getSettings().hermes.model,
+        model: getSettings().ai.model,
         note: opts.note || (opts.refine ? (opts.keywords?.length ? 'Worked in ATS keywords' : opts.instructions?.slice(0, 120) || 'Worked in your answers') : 'First draft'),
         resumeHash: resumeHash(profile),
       };

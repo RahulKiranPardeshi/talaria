@@ -3,7 +3,7 @@
 // in one line (a skills line, the bullet about that work, or the summary). Code keeps an edit only
 // if the keyword is backed by something the candidate wrote themselves, the line still says what
 // it said, and nothing factual moved. Keywords that don't fit are remembered and never forced.
-import { askJson, isPausedError, type RunHandle } from './hermes.ts';
+import { askJson, isPausedError, type RunHandle } from './ai/index.ts';
 import { cleanText, keepsFacts, wordCount, type HumanLine } from './humanize.ts';
 import { escapeLoose, noEmDash, plainLatex, similarity, skillKnown, textHasKeyword } from './latexSlots.ts';
 

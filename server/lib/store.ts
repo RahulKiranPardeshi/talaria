@@ -50,7 +50,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  hermes: {
+  ai: {
     provider: 'copilot',
     model: 'gpt-4.1',
     concurrency: 2,
@@ -108,7 +108,10 @@ function load(): DB {
       settings: {
         ...base.settings,
         ...(raw.settings || {}),
-        hermes: { ...base.settings.hermes, ...(raw.settings?.hermes || {}) },
+        // Settings saved before Talaria had its own AI client kept these under "hermes".
+        ai: { ...base.settings.ai, ...((raw.settings as any)?.hermes || {}), ...(raw.settings?.ai || {}) },
+        // Those people set Talaria up with Hermes Agent: offer them once to remove it.
+        hermesCleanup: raw.settings?.hermesCleanup ?? ((raw.settings as any)?.hermes ? 'offer' : undefined),
         autopilot: { ...base.settings.autopilot, ...(raw.settings?.autopilot || {}) },
         apply: { ...base.settings.apply, ...(raw.settings?.apply || {}) },
         linkedin: { ...base.settings.linkedin, ...(raw.settings?.linkedin || {}) },
@@ -128,6 +131,7 @@ function load(): DB {
 }
 
 const db: DB = load();
+delete (db.settings as any).hermes;
 
 // Any task that was mid-flight when the server stopped can't still be running.
 for (const job of Object.values(db.jobs)) {
@@ -188,7 +192,7 @@ export function setSettings(patch: Partial<Settings>) {
   db.settings = {
     ...db.settings,
     ...patch,
-    hermes: { ...db.settings.hermes, ...(patch.hermes || {}) },
+    ai: { ...db.settings.ai, ...(patch.ai || {}) },
     autopilot: { ...db.settings.autopilot, ...(patch.autopilot || {}) },
     apply: { ...db.settings.apply, ...(patch.apply || {}) },
     linkedin: { ...db.settings.linkedin, ...(patch.linkedin || {}) },

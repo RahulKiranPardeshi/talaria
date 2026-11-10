@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { aiProviderLabel } from '@shared/aiProviders';
 import {
   DndContext,
   DragOverlay,
@@ -261,7 +262,8 @@ export function Board() {
 }
 
 function RateLimitBanner() {
-  const until = useApp(s => s.hermes.rateLimitedUntil);
+  const until = useApp(s => s.ai.rateLimitedUntil);
+  const provider = useApp(s => s.ai.provider);
   const queued = useApp(s => s.runs.filter(r => r.status === 'running' || r.status === 'queued').length);
   const [, tick] = React.useState(0);
   React.useEffect(() => {
@@ -276,7 +278,7 @@ function RateLimitBanner() {
       <div className="mb-4 flex items-start gap-3 border border-warn/25 bg-warn-soft/60 px-4 py-3">
         <Hourglass className="mt-0.5 size-4 shrink-0 text-warn" />
         <div className="text-[13px] leading-relaxed text-ink-2">
-          <span className="font-semibold text-ink">GitHub Copilot is rate-limiting Hermes until {at}</span> (about {mins} min). {queued ? `${queued} queued task${queued === 1 ? '' : 's'} will` : 'Anything you start will'} continue automatically then. Nothing is lost.
+          <span className="font-semibold text-ink">{aiProviderLabel(provider)} is rate-limiting Talaria until {at}</span> (about {mins} min). {queued ? `${queued} queued task${queued === 1 ? '' : 's'} will` : 'Anything you start will'} continue automatically then. Nothing is lost.
           <span className="text-muted"> Greenhouse, Lever and Ashby links can still be added now.</span>
         </div>
       </div>

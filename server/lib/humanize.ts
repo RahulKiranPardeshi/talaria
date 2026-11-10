@@ -3,7 +3,7 @@
 // verb again and again, typographic leftovers); Hermes rewrites only the lines that have them,
 // and code keeps a rewrite only if every number, name and job keyword survives and it reads
 // cleaner than before. Strong action verbs and the candidate's own metaphors are left alone.
-import { askJson, isPausedError, type RunHandle } from './hermes.ts';
+import { askJson, isPausedError, type RunHandle } from './ai/index.ts';
 import { bracesOk, escapeLoose, noEmDash, plainLatex, textHasKeyword } from './latexSlots.ts';
 
 /** Invisible characters, curly quotes, ellipses and odd spaces: typographic traces of generated text. */

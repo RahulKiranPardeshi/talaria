@@ -1,5 +1,5 @@
-// MCP endpoint so Hermes (or any MCP client) can read and drive the board from chat:
-//   hermes mcp add talaria --url http://127.0.0.1:5178/mcp
+// MCP endpoint so any MCP client (Claude Code, Codex, Cursor…) can read and drive the board from chat:
+//   claude mcp add --transport http talaria http://127.0.0.1:5178/mcp
 import type { Express, Request, Response } from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';

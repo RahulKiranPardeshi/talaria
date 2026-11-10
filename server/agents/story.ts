@@ -2,7 +2,7 @@
 // your cover letters are written from. Your answers stay the source; the story can be rewoven anytime.
 
 import { composeStory, STORY_QUESTIONS } from '../../shared/story.ts';
-import { askJson, callHermes, finishRun, startRun } from '../lib/hermes.ts';
+import { askJson, callAI, finishRun, startRun } from '../lib/ai/index.ts';
 import { getProfile, getSettings, now, setProfile } from '../lib/store.ts';
 import { noEmDash } from '../lib/latexSlots.ts';
 
@@ -45,7 +45,7 @@ async function weave(answers: Record<string, string>) {
     const qa = STORY_QUESTIONS.filter(q => answers[q.id])
       .map(q => `Q: ${q.q}\nA: ${answers[q.id]}`)
       .join('\n\n');
-    const res = await callHermes({ prompt: WEAVE_PROMPT(getProfile()?.name?.split(' ')[0] || 'the candidate', qa), handle: h, priority: 2, timeoutSec: 240, model: getSettings().hermes.tailorModel || undefined });
+    const res = await callAI({ prompt: WEAVE_PROMPT(getProfile()?.name?.split(' ')[0] || 'the candidate', qa), handle: h, priority: 2, timeoutSec: 240, model: getSettings().ai.tailorModel || undefined });
     const story = noEmDash(res.text.trim().replace(/^["“]|["”]$/g, ''));
     const current = getProfile();
     // Only if your answers didn't change meanwhile: a newer save weaves its own story.

@@ -12,6 +12,8 @@ import { navigate } from '@/lib/router';
 import { getThemePref, setThemePref, type ThemePref } from '@/lib/theme';
 import { toast } from 'sonner';
 import { WavRecorder } from '@/lib/recorder';
+import { AIConnect, MODEL_HINT } from '@/components/AIConnect';
+import { AI_PROVIDERS, aiProviderLabel } from '@shared/aiProviders';
 
 const SECTIONS = [
   { id: 'general', label: 'General' },
@@ -21,18 +23,19 @@ const SECTIONS = [
   { id: 'data', label: 'Data and privacy' },
 ];
 
-/** How Talaria and Hermes run. Everything here saves the moment you change it. */
+/** How Talaria and its AI run. Everything here saves the moment you change it. */
 export function SettingsView() {
   const settings = useApp(s => s.settings)!;
-  const hermes = useApp(s => s.hermes);
+  const ai = useApp(s => s.ai);
   const [models, setModels] = React.useState<Record<string, string[]>>({});
   const [checking, setChecking] = React.useState(false);
   const [theme, setTheme] = React.useState<ThemePref>(getThemePref());
   const [tour, setTour] = React.useState(false);
 
-  React.useEffect(() => {
-    api.get<Record<string, string[]>>('/api/hermes/models', { quiet: true }).then(setModels).catch(() => {});
+  const reloadModels = React.useCallback(() => {
+    api.get<Record<string, string[]>>('/api/ai/models', { quiet: true }).then(setModels).catch(() => {});
   }, []);
+  React.useEffect(reloadModels, [reloadModels]);
 
   const save = async (patch: Partial<Settings>, msg = 'Saved') => {
     await api.put('/api/settings', patch);
@@ -41,25 +44,25 @@ export function SettingsView() {
   const [trying, setTrying] = React.useState<string | null>(null);
   // Never switch models blind: a provider without credentials would break every agent task.
   const tryAndSave = async (provider: string, model: string, field: 'model' | 'tailorModel' = 'model') => {
-    if (!model) return save({ hermes: { ...h, tailorModel: undefined } });
+    if (!model) return save({ ai: { ...h, tailorModel: undefined } });
     setTrying(`${model}`);
     try {
-      const r = await api.post<{ ok: boolean; message?: string; latencyMs?: number }>('/api/hermes/try', { provider, model });
+      const r = await api.post<{ ok: boolean; message?: string; latencyMs?: number }>('/api/ai/try', { provider, model });
       if (!r.ok) {
-        toast.error(`${model} didn't work through Hermes: ${r.message}`, { duration: 9000 });
+        toast.error(`${model} didn't work: ${r.message}`, { duration: 9000 });
         return;
       }
       // A writing model from another provider wouldn't work after a provider switch, so it's dropped.
       const keepTailor = provider === h.provider || (h.tailorModel && (models[provider] || []).includes(h.tailorModel));
       await save(
-        field === 'model' ? { hermes: { ...h, provider, model, tailorModel: keepTailor ? h.tailorModel : undefined } } : { hermes: { ...h, tailorModel: model } },
+        field === 'model' ? { ai: { ...h, provider, model, tailorModel: keepTailor ? h.tailorModel : undefined } } : { ai: { ...h, tailorModel: model } },
         `Switched to ${model}. It answered in ${((r.latencyMs || 0) / 1000).toFixed(1)}s`,
       );
     } finally {
       setTrying(null);
     }
   };
-  const h = settings.hermes;
+  const h = settings.ai;
   const ap = settings.autopilot;
   const providerModels = models[h.provider] || [];
   const mcpUrl = `${location.protocol}//127.0.0.1:5178/mcp`;
@@ -67,7 +70,7 @@ export function SettingsView() {
   const check = async () => {
     setChecking(true);
     try {
-      await api.post('/api/hermes/check');
+      await api.post('/api/ai/check');
     } finally {
       setChecking(false);
     }
@@ -76,7 +79,7 @@ export function SettingsView() {
   return (
     <>
       <BoardTour force={tour} onClose={() => setTour(false)} />
-      <SectionPage title="Settings" subtitle="How Talaria and Hermes run. Changes here save as soon as you make them." sections={SECTIONS} rail={<StatusRail />}>
+      <SectionPage title="Settings" subtitle="How Talaria and its AI run. Changes here save as soon as you make them." sections={SECTIONS} rail={<StatusRail />}>
         <PageSectionBlock id="general" title="General">
           <Card className="divide-y divide-line-2">
             <Row title="Appearance">
@@ -120,65 +123,57 @@ export function SettingsView() {
           </Card>
         </PageSectionBlock>
 
-        <PageSectionBlock id="ai" title="AI model" desc="The model Hermes uses for every task, and what it's allowed to do.">
+        <PageSectionBlock id="ai" title="AI model" desc="The AI account and model Talaria uses for every task, and what it's allowed to do.">
           <Card className="overflow-hidden">
             <div className="flex items-center gap-4 border-b border-line-2 p-5">
-              <div className={cn('grid size-11 place-items-center ', hermes.ok ? 'bg-ok-soft text-ok' : 'bg-warn-soft text-warn')}>{hermes.ok ? <Bot className="size-5" /> : <TriangleAlert className="size-5" />}</div>
+              <div className={cn('grid size-11 place-items-center ', ai.ok ? 'bg-ok-soft text-ok' : 'bg-warn-soft text-warn')}>{ai.ok ? <Bot className="size-5" /> : <TriangleAlert className="size-5" />}</div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 text-[14.5px] font-semibold text-ink">
-                  <StatusDot color={hermes.ok ? 'var(--ok)' : 'var(--warn)'} />
-                  {hermes.ok ? 'Connected' : hermes.installed ? 'Installed, but not answering' : 'Hermes not found'}
-                  {hermes.version && <Badge>v{hermes.version}</Badge>}
+                  <StatusDot color={ai.ok ? 'var(--ok)' : 'var(--warn)'} />
+                  {ai.ok ? `Connected to ${aiProviderLabel(h.provider)}` : 'Not answering'}
                 </div>
                 <div className="mt-0.5 truncate text-[12.5px] text-muted">
-                  {hermes.ok ? `Last check ${timeAgo(hermes.checkedAt)}${hermes.latencyMs ? ` · round trip ${(hermes.latencyMs / 1000).toFixed(1)}s` : ''}` : hermes.message}
+                  {ai.ok ? `${h.model} · last check ${timeAgo(ai.checkedAt)}${ai.latencyMs ? ` · round trip ${(ai.latencyMs / 1000).toFixed(1)}s` : ''}` : ai.message}
                 </div>
               </div>
               <Button variant="secondary" loading={checking} icon={<RefreshCw className="size-4" />} onClick={check}>
                 Test
               </Button>
             </div>
+            <div className="border-b border-line-2 p-5">
+              <AIConnect compact onConnected={reloadModels} />
+            </div>
             <div className="grid gap-5 p-5 sm:grid-cols-2">
-              <Field label="Provider" hint="Any provider you've signed into with Hermes. Talaria tests it before switching.">
-                <ProviderSelect value={h.provider} options={Object.keys(models)} disabled={Boolean(trying)} onChange={provider => tryAndSave(provider, (models[provider] || [])[0] || h.model)} />
-              </Field>
               <Field
                 label={
                   <span className="flex items-center gap-1.5">
                     Model {trying && <Loader className="size-3 animate-spin text-gold" />}
                   </span>
                 }
-                hint={
-                  trying
-                    ? `Testing ${trying} through Hermes…`
-                    : h.provider === 'copilot'
-                      ? 'gpt-4.1 and gpt-4o are unlimited on Copilot. Premium models use your monthly quota and may need enabling at github.com/settings/copilot.'
-                      : h.provider === 'openai-codex'
-                        ? 'The list shows the models your ChatGPT plan offers. Calls count against your ChatGPT usage limits.'
-                        : undefined
-                }
+                hint={trying ? `Testing ${trying}…` : MODEL_HINT[h.provider]}
               >
                 <ModelSelect value={h.model} options={providerModels} disabled={Boolean(trying)} onChange={model => tryAndSave(h.provider, model)} />
               </Field>
               <Field label="Writing model (optional)" hint="A stronger model just for resumes & cover letters. Leave blank to use the main model.">
                 <ModelSelect value={h.tailorModel || ''} options={['', ...providerModels]} disabled={Boolean(trying)} onChange={m => tryAndSave(h.provider, m, 'tailorModel')} />
               </Field>
-              <Field label="Parallel tasks" hint="How many Hermes tasks may run at once.">
-                <Segmented size="sm" value={String(h.concurrency)} onChange={v => save({ hermes: { ...h, concurrency: Number(v) } })} options={['1', '2', '3', '4'].map(v => ({ value: v, label: v }))} />
+              <Field label="Parallel tasks" hint="How many AI tasks may run at once.">
+                <Segmented size="sm" value={String(h.concurrency)} onChange={v => save({ ai: { ...h, concurrency: Number(v) } })} options={['1', '2', '3', '4'].map(v => ({ value: v, label: v }))} />
               </Field>
             </div>
             <div className="flex items-center justify-between gap-4 border-t border-line-2 px-5 py-4">
               <div>
-                <div className="text-[13.5px] font-medium text-ink">Let Hermes browse the web</div>
+                <div className="text-[13.5px] font-medium text-ink">Search the web</div>
                 <div className="text-[12.5px] leading-relaxed text-muted">
-                  Hermes's own web search. Needed for the Hermes web search source and PhD search in{' '}
+                  {AI_PROVIDERS.find(p => p.id === h.provider)?.webSearch === 'native' ? `Uses ${aiProviderLabel(h.provider)}'s own web search. ` : 'Uses free web search (DuckDuckGo) and reads pages from this computer. '}
+                  Needed for the web search source and PhD search in{' '}
                   <button onClick={() => navigate({ view: 'search', section: 'where' })} className="text-accent hover:underline">
                     Job search
                   </button>
                   . Slower, but finds roles beyond the job boards.
                 </div>
               </div>
-              <Switch checked={h.webSearch} onChange={webSearch => save({ hermes: { ...h, webSearch } }, webSearch ? 'Hermes can browse the web' : "Hermes won't browse the web")} label="Let Hermes browse the web" />
+              <Switch checked={h.webSearch} onChange={webSearch => save({ ai: { ...h, webSearch } }, webSearch ? 'The AI can search the web' : "The AI won't search the web")} label="Search the web" />
             </div>
           </Card>
         </PageSectionBlock>
@@ -239,14 +234,14 @@ export function SettingsView() {
                   <MessageSquareText className="size-4" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-[14px] font-semibold text-ink">Talk to your board from Hermes</div>
-                  <p className="mt-1 text-[13px] leading-relaxed text-muted">Connect Talaria to Hermes as an MCP server. Then chat with Hermes anywhere — the terminal, or Telegram/Discord if you set up its gateway — and ask things like “what needs my input?”, “find me new jobs”, or “summarize what I applied to this week”.</p>
+                  <div className="text-[14px] font-semibold text-ink">Talk to your board from an AI app</div>
+                  <p className="mt-1 text-[13px] leading-relaxed text-muted">Talaria is also an MCP server. Add it to an AI app that supports MCP (Claude Code, Codex, Cursor and others), then ask things like “what needs my input?”, “find me new jobs”, or “summarize what I applied to this week”.</p>
                   <div className="mt-3 flex items-center gap-2 bg-[#121116] px-3.5 py-2.5 font-mono text-[12.5px] text-[#e9e7f2]">
-                    <span className="text-[#e7b04c]">$</span>
-                    <span className="flex-1 truncate">hermes mcp add talaria --url {mcpUrl}</span>
-                    <CopyButton text={`hermes mcp add talaria --url ${mcpUrl}`} className="border-white/15 text-[#e9e7f2] hover:bg-white/10" />
+                    <span className="text-[#e7b04c]">MCP URL</span>
+                    <span className="min-w-0 flex-1 truncate">{mcpUrl}</span>
+                    <CopyButton text={mcpUrl} className="border-white/15 text-[#e9e7f2] hover:bg-white/10" />
                   </div>
-                  <p className="mt-2 text-[12px] text-faint">Talaria must be running for Hermes to reach it.</p>
+                  <p className="mt-2 text-[12px] text-faint">For example: claude mcp add --transport http talaria {mcpUrl}. Talaria must be running for the app to reach it.</p>
                 </div>
               </div>
             </Card>
@@ -256,7 +251,7 @@ export function SettingsView() {
         <PageSectionBlock id="data" title="Data and privacy">
           <div className="space-y-3">
             <Card>
-              <Row title="Where your data lives" desc="Everything is stored locally in the data/ folder next to the app. Nothing leaves your computer except prompts Hermes sends to your model provider, and recordings sent to Google if you use voice typing.">
+              <Row title="Where your data lives" desc="Everything is stored locally in the data/ folder next to the app. Nothing leaves your computer except prompts sent to your AI provider, web searches, and recordings sent to Google if you use voice typing.">
                 <span />
               </Row>
             </Card>
@@ -286,13 +281,13 @@ export function SettingsView() {
 
 /** What's on, what's broken and when things last ran, each linking to where you fix it. */
 function StatusRail() {
-  const hermes = useApp(s => s.hermes);
+  const ai = useApp(s => s.ai);
   const settings = useApp(s => s.settings);
   const jump = useSectionJump();
   if (!settings) return null;
   const ap = settings.autopilot;
   const g = settings.gmail;
-  const paused = hermes.rateLimitedUntil && Date.parse(hermes.rateLimitedUntil) > Date.now();
+  const paused = ai.rateLimitedUntil && Date.parse(ai.rateLimitedUntil) > Date.now();
   const next = (() => {
     if (!ap.enabled) return null;
     const due = (ap.lastScoutAt ? Date.parse(ap.lastScoutAt) : 0) + ap.scoutEveryHours * 3600_000 - Date.now();
@@ -303,12 +298,12 @@ function StatusRail() {
   return (
     <RailCard title="Status">
       <StatusLine
-        tone={paused ? 'warn' : hermes.ok ? 'ok' : 'bad'}
-        title={paused ? 'Hermes paused' : hermes.ok ? 'Hermes connected' : 'Hermes not answering'}
-        detail={paused ? `Rate limit · resumes ${new Date(hermes.rateLimitedUntil!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : hermes.ok ? `${hermes.provider} · ${hermes.model}` : hermes.message}
+        tone={paused ? 'warn' : ai.ok ? 'ok' : 'bad'}
+        title={paused ? 'AI paused' : ai.ok ? 'AI connected' : 'AI not answering'}
+        detail={paused ? `Rate limit · resumes ${new Date(ai.rateLimitedUntil!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ai.ok ? `${aiProviderLabel(ai.provider)} · ${ai.model}` : ai.message}
         onClick={() => jump('ai')}
       />
-      <StatusLine tone={settings.hermes.webSearch ? 'ok' : 'off'} title={settings.hermes.webSearch ? 'Web browsing on' : 'Web browsing off'} onClick={() => jump('ai')} />
+      <StatusLine tone={settings.ai.webSearch ? 'ok' : 'off'} title={settings.ai.webSearch ? 'Web search on' : 'Web search off'} onClick={() => jump('ai')} />
       <StatusLine tone={ap.enabled ? 'ok' : 'off'} title={ap.enabled ? 'Autopilot on' : 'Autopilot off'} detail={ap.enabled ? `Next search ${next}` : 'Searches only when you ask'} onClick={() => jump('automation')} />
       <StatusLine tone={settings.linkedin.connected ? 'ok' : 'off'} title={settings.linkedin.connected ? 'LinkedIn connected' : 'LinkedIn not connected'} onClick={() => jump('connections')} />
       <StatusLine
@@ -637,21 +632,6 @@ function Row({ title, desc, children, step }: { title: string; desc?: string; ch
       </div>
       <div className="shrink-0">{children}</div>
     </div>
-  );
-}
-
-const PROVIDER_LABEL: Record<string, string> = { copilot: 'GitHub Copilot', anthropic: 'Claude (Anthropic)', gemini: 'Google Gemini', openrouter: 'OpenRouter', openai: 'OpenAI', 'openai-codex': 'ChatGPT / Codex', nous: 'Nous Portal' };
-
-function ProviderSelect({ value, options, onChange, disabled }: { value: string; options: string[]; onChange: (v: string) => void; disabled?: boolean }) {
-  const all = Array.from(new Set([value, 'openai-codex', 'anthropic', 'copilot', ...options]));
-  return (
-    <select disabled={disabled} value={value} onChange={e => onChange(e.target.value)} className="h-9 w-full border border-line bg-card px-2.5 text-[13.5px] text-ink outline-none focus:border-accent/60 disabled:opacity-60">
-      {all.map(p => (
-        <option key={p} value={p}>
-          {PROVIDER_LABEL[p] || p}
-        </option>
-      ))}
-    </select>
   );
 }
 

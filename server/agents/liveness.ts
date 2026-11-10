@@ -3,7 +3,7 @@
 
 import type { Job, JobStatus } from '../../shared/types.ts';
 import { listJobs, now, updateJob } from '../lib/store.ts';
-import { askJson } from '../lib/hermes.ts';
+import { askJson } from '../lib/ai/index.ts';
 import { renderHtml } from '../sources/jobpage.ts';
 
 type Result = { live: boolean | null; reason: string };

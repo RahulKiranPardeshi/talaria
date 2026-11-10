@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Preferences, Profile, Seniority } from '../../shared/types.ts';
-import { askJson, finishRun, startRun, STOPPED, stopRun } from '../lib/hermes.ts';
+import { askJson, finishRun, startRun, STOPPED, stopRun } from '../lib/ai/index.ts';
 import { getPreferences, getProfile, getSettings, setPreferences, setProfile } from '../lib/store.ts';
 import { clamp, oneOf, str, strArr } from './common.ts';
 

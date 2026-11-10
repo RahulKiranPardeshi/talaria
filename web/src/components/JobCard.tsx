@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { aiProviderLabel } from '@shared/aiProviders';
 import { AlertTriangle, ArrowRight, Check, Hourglass, Mail, MapPin, Pause, Play, Sparkles, SquarePen, Star, Unlink, X } from 'lucide-react';
 import type { ArchiveReason, Job } from '@shared/types';
 import { isStaleDraft, resumeHash } from '@shared/resume';
@@ -84,21 +85,22 @@ export const JobCard = React.memo(function JobCard({ job, overlay, dragging }: {
 });
 
 function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; working: boolean; step: string | null; pending: number; tailorErr: string | null }) {
-  const pausedUntil = useApp(s => s.hermes.rateLimitedUntil);
+  const pausedUntil = useApp(s => s.ai.rateLimitedUntil);
+  const provider = useApp(s => s.ai.provider);
   const pausedAt = pausedUntil && Date.parse(pausedUntil) > Date.now() ? new Date(pausedUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
   if (working && step) {
     if (pausedAt)
       return (
         <div className="-mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 border-t border-line bg-ink/[0.03] px-3.5 py-2 text-[12px] font-medium text-muted dark:bg-white/[0.04]">
           <Hourglass className="size-3.5" />
-          <span className="flex-1 truncate">Paused by Copilot · resumes {pausedAt}</span>
+          <span className="min-w-0 flex-1 truncate">Paused by {aiProviderLabel(provider)} · resumes {pausedAt}</span>
           <PauseButton id={job.id} />
         </div>
       );
     return (
       <div className="agent-sheen -mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 border-t border-gold/15 bg-gold-soft/60 px-3.5 py-2 text-[12px] font-medium text-gold">
         <Sparkles className="size-3.5 animate-pulse-soft" />
-        <span className="flex-1 truncate">{step}…</span>
+        <span className="min-w-0 flex-1 truncate">{step}…</span>
         <PauseButton id={job.id} />
       </div>
     );
@@ -130,7 +132,7 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
     return (
       <div className="-mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 border-t border-line bg-ink/[0.03] px-3.5 py-2 text-[12px] font-medium text-muted dark:bg-white/[0.04]">
         <Pause className="size-3.5" />
-        <span className="flex-1 truncate">Paused{job.packet ? ' · draft kept' : ''}</span>
+        <span className="min-w-0 flex-1 truncate">Paused{job.packet ? ' · draft kept' : ''}</span>
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={e => {
@@ -148,7 +150,7 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
     return (
       <div className="-mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 border-t border-bad/15 bg-bad-soft/60 px-3.5 py-2 text-[12px] font-medium text-bad">
         <AlertTriangle className="size-3.5" />
-        <span className="flex-1 truncate">Hermes hit a snag</span>
+        <span className="min-w-0 flex-1 truncate">Hermes hit a snag</span>
         <button
           onPointerDown={e => e.stopPropagation()}
           onClick={e => {

@@ -520,7 +520,7 @@ export function ContextMenuItem({ children, onSelect, icon, danger, disabled, hi
   return (
     <RContext.Item disabled={disabled} onSelect={onSelect} className={cn(menuRow, danger ? 'text-bad' : 'text-ink-2 data-[highlighted]:text-ink')}>
       <span className={cn('grid size-4 shrink-0 place-items-center [&>svg]:size-4', danger ? 'text-bad' : 'text-muted')}>{icon}</span>
-      <span className="flex-1 truncate">{children}</span>
+      <span className="min-w-0 flex-1 truncate">{children}</span>
       {hint && <span className="pl-3 text-[11.5px] text-faint">{hint}</span>}
     </RContext.Item>
   );
@@ -531,7 +531,7 @@ export function ContextMenuSub({ label, icon, children }: { label: React.ReactNo
     <RContext.Sub>
       <RContext.SubTrigger className={cn(menuRow, 'text-ink-2 data-[highlighted]:text-ink')}>
         <span className="grid size-4 shrink-0 place-items-center text-muted [&>svg]:size-4">{icon}</span>
-        <span className="flex-1 truncate">{label}</span>
+        <span className="min-w-0 flex-1 truncate">{label}</span>
         <ChevronRight className="size-3.5 text-faint" />
       </RContext.SubTrigger>
       <RContext.Portal>

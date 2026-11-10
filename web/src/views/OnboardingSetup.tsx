@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowLeft, ArrowRight, Check, ChevronDown, FileText, HardDrive, Loader, MessageSquare, RefreshCw, Search, Send, ShieldCheck, SquareDashed } from 'lucide-react';
-import type { HermesAccounts, SetupStatus } from '@shared/types';
+import type { SetupStatus } from '@shared/types';
+import { AIConnect } from '@/components/AIConnect';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import { cn } from '@/lib/utils';
@@ -117,27 +118,6 @@ export function WelcomeStep({ kicker, next }: { kicker: string; next: () => void
 
 // ---------------- 1. Connect the AI ----------------
 
-type ProviderId = 'openai-codex' | 'anthropic' | 'copilot' | 'other';
-
-const PROVIDERS: { id: ProviderId; name: string; account: string; who: string }[] = [
-  { id: 'openai-codex', name: 'ChatGPT / Codex', account: 'ChatGPT', who: 'I pay for ChatGPT (Plus, Pro or Business)' },
-  { id: 'anthropic', name: 'Claude (Anthropic)', account: 'Claude', who: 'I pay for Claude (Pro or Max)' },
-  { id: 'copilot', name: 'GitHub Copilot', account: 'GitHub Copilot', who: 'I have GitHub Copilot (the free student plan counts)' },
-  { id: 'other', name: 'Something else', account: 'your provider', who: 'I have an API key (OpenRouter, Gemini, OpenAI…)' },
-];
-
-const MODEL_HINT: Partial<Record<ProviderId, string>> = {
-  'openai-codex': 'The list shows the models your ChatGPT plan offers. Every call counts against your ChatGPT usage limits.',
-  anthropic: 'Every call counts against your Claude plan’s usage limits, shared with claude.ai and Claude Code. Sonnet is the best balance; Opus uses the limits faster.',
-  copilot: 'gpt-4.1 and gpt-4o are unlimited on Copilot. Premium models use your monthly quota and may need enabling at github.com/settings/copilot.',
-};
-
-type ConnectResult = { ok: boolean; model?: string; message?: string; latencyMs?: number };
-
-// The subscriptions with their own button; any other provider goes under "Something else".
-const SUBSCRIPTIONS: string[] = ['openai-codex', 'anthropic', 'copilot'];
-const isSubscription = (provider: string) => SUBSCRIPTIONS.includes(provider);
-
 function Collapsible({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = React.useState(defaultOpen);
   return (
@@ -151,255 +131,26 @@ function Collapsible({ title, children, defaultOpen = false }: { title: string; 
   );
 }
 
-function CheckRow({ ok, pending, title, children }: { ok: boolean; pending?: boolean; title: string; children?: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-3">
-      <div className={cn('mt-0.5 grid size-5 shrink-0 place-items-center ', ok ? 'bg-ok-soft text-ok' : 'bg-ink/5 text-faint')}>
-        {pending ? <Loader className="size-3 animate-spin" /> : ok ? <Check className="size-3" strokeWidth={3} /> : <SquareDashed className="size-3" />}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="text-[13.5px] font-medium text-ink">{title}</div>
-        {children && <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted">{children}</div>}
-      </div>
-    </div>
-  );
-}
-
 export function ConnectStep({ kicker, next, back }: { kicker: string; next: () => void; back: () => void }) {
-  const hermes = useApp(s => s.hermes);
+  const ai = useApp(s => s.ai);
   const settings = useApp(s => s.settings)!;
   const [setup, setSetup] = React.useState<SetupStatus | null>(null);
-  const [looking, setLooking] = React.useState(true);
-  const [choice, setChoice] = React.useState<ProviderId>(isSubscription(settings.hermes.provider) ? (settings.hermes.provider as ProviderId) : 'other');
-  const current = PROVIDERS.find(p => p.id === choice)!;
-  const [accounts, setAccounts] = React.useState<HermesAccounts | null>(null);
-  // Only "Something else" asks for names; the subscriptions are known.
-  const [otherProvider, setOtherProvider] = React.useState(isSubscription(settings.hermes.provider) ? '' : settings.hermes.provider);
-  const [otherModel, setOtherModel] = React.useState(isSubscription(settings.hermes.provider) ? '' : settings.hermes.model);
-  const [reSignIn, setReSignIn] = React.useState(false);
-  const [connecting, setConnecting] = React.useState<string | null>(null);
-  const [result, setResult] = React.useState<ConnectResult | null>(null);
-  const provider = choice === 'other' ? otherProvider.trim() : choice;
+  const [connected, setConnected] = React.useState(false);
 
-  // Is Hermes installed? (A light check: it doesn't ask the AI anything yet.)
-  const look = React.useCallback(async () => {
-    setLooking(true);
-    try {
-      await api.post('/api/hermes/check?deep=0', {}, { quiet: true });
-    } catch {}
+  React.useEffect(() => {
     api.get<SetupStatus>('/api/setup/status', { quiet: true }).then(setSetup).catch(() => {});
-    setLooking(false);
   }, []);
-  React.useEffect(() => {
-    look();
-  }, [look]);
 
-  // Which accounts Hermes is signed in to. Read again whenever the person comes back from the terminal.
-  const loadAccounts = React.useCallback(() => api.get<HermesAccounts>('/api/hermes/accounts', { quiet: true }).then(setAccounts).catch(() => {}), []);
-  React.useEffect(() => {
-    loadAccounts();
-    window.addEventListener('focus', loadAccounts);
-    return () => window.removeEventListener('focus', loadAccounts);
-  }, [loadAccounts]);
-
-  // What `hermes model` set up fills in "Something else", so nobody retypes it.
-  const configured = accounts?.configured;
-  React.useEffect(() => {
-    if (!configured?.provider || isSubscription(configured.provider) || otherProvider) return;
-    setOtherProvider(configured.provider);
-    setOtherModel(configured.model || '');
-  }, [configured?.provider, configured?.model]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const pick = (id: ProviderId) => {
-    setChoice(id);
-    setReSignIn(false);
-    setResult(r => (r?.ok ? r : null)); // a working connection still counts after looking at another option
-  };
-
-  /** Test the account and switch Talaria to it. Without a model, the server picks one the account accepts. */
-  const connect = async (model?: string) => {
-    if (!provider) return;
-    setConnecting(model || 'auto');
-    setResult(null);
-    try {
-      setResult(await api.post<ConnectResult>('/api/hermes/connect', { provider, model: model?.trim() || undefined }, { quiet: true }));
-    } catch (err: any) {
-      setResult({ ok: false, message: err?.message || 'Something went wrong.' });
-    }
-    setConnecting(null);
-  };
-
-  const signedIn = choice !== 'other' && Boolean(accounts?.signedIn.includes(choice));
-  const usingThis = Boolean(provider) && settings.hermes.provider === provider;
-  const connected = usingThis && Boolean(result?.ok || hermes.ok);
-  // Any working account is enough to move on, even if the person is now looking at another option.
-  const ready = Boolean(result?.ok) || (hermes.ok && hermes.provider === settings.hermes.provider);
-  const models = accounts?.models[provider] || [];
-  const otherProviders = [...new Set([...(accounts?.signedIn || []), ...Object.keys(accounts?.models || {})])].filter(p => !isSubscription(p));
-  const windows = (setup?.platform ?? navigator.platform).toLowerCase().startsWith('win');
-  const installCmd = windows ? 'iex (irm https://hermes-agent.nousresearch.com/install.ps1)' : 'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash';
+  // Any working account is enough to move on.
+  const ready = connected || (ai.ok && ai.provider === settings.ai.provider);
 
   return (
     <div>
       <StepHeader kicker={kicker} title="Connect the brain.">
-        Talaria uses a free program called <strong className="font-semibold text-ink">Hermes</strong> to talk to an AI. You sign in to an AI account you already have, and Hermes does the rest. Talaria never sees your password.
+        Talaria uses an AI account you already have to read your resume, score jobs and write your applications. Sign in once; Talaria never sees your password.
       </StepHeader>
 
-      {/* 1. Hermes installed? */}
-      <div className="bg-card p-5 shadow-card">
-        <CheckRow ok={hermes.installed} pending={looking} title={hermes.installed ? `Hermes is installed${hermes.version ? ` (v${hermes.version})` : ''}` : looking ? 'Looking for Hermes…' : 'Hermes is not installed yet'}>
-          {!hermes.installed && !looking && (
-            <div className="mt-2 space-y-2.5">
-              <p>
-                Open {windows ? <strong>PowerShell</strong> : 'a terminal'} (search for it in your {windows ? 'Start menu' : 'applications'}), paste this line, press Enter and wait for it to finish. Then close that window and press <em>Check again</em>.
-              </p>
-              <Cmd>{installCmd}</Cmd>
-              <Button variant="secondary" size="sm" icon={<RefreshCw className="size-3.5" />} onClick={look}>
-                Check again
-              </Button>
-            </div>
-          )}
-        </CheckRow>
-      </div>
-
-      {/* 2. Which AI account? */}
-      {hermes.installed && (
-        <div className="mt-5 space-y-4">
-          <div>
-            <div className="mb-2 text-[13.5px] font-semibold text-ink">Which AI account do you have?</div>
-            <div className="grid gap-2">
-              {PROVIDERS.map(p => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => pick(p.id)}
-                  className={cn('flex items-center gap-3 border px-4 py-3 text-left transition-colors', choice === p.id ? 'border-ink bg-card shadow-card' : 'border-line bg-card/60 hover:border-ink/30')}
-                >
-                  <span className={cn('grid size-5 shrink-0 place-items-center border', choice === p.id ? 'border-ink bg-ink text-bg' : 'border-line')}>{choice === p.id && <Check className="size-3" strokeWidth={3} />}</span>
-                  <span>
-                    <span className="block text-[14px] font-semibold text-ink">{p.name}</span>
-                    <span className="block text-[12.5px] text-muted">{p.who}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-2.5 bg-card p-5 shadow-card">
-            <div className="text-[13.5px] font-semibold text-ink">{connected ? `Connected to ${current.account}` : signedIn ? 'Signed in' : 'Sign in (one time)'}</div>
-            {signedIn && !reSignIn ? (
-              <CheckRow ok title={`Hermes is already signed in to ${current.account}.`}>
-                <button type="button" onClick={() => setReSignIn(true)} className="underline-offset-2 hover:text-ink hover:underline">
-                  Use a different account
-                </button>
-              </CheckRow>
-            ) : (
-              <>
-                {choice === 'openai-codex' && (
-                  <>
-                    <p className="text-[13px] leading-relaxed text-muted">Copy this into your terminal and press Enter. A browser window opens: sign in with your ChatGPT account and approve. Then come back here.</p>
-                    <Cmd>hermes auth add openai-codex --type oauth</Cmd>
-                    <p className="text-[12px] text-faint">Uses your ChatGPT plan's allowance, so there's no separate bill and no API key. Heavy use can hit your plan's limits; Talaria pauses and retries by itself.</p>
-                  </>
-                )}
-                {choice === 'anthropic' && (
-                  <>
-                    <p className="text-[13px] leading-relaxed text-muted">Copy this into your terminal and press Enter. A browser window opens: sign in with your Claude account and approve. Then come back here.</p>
-                    <Cmd>hermes auth add anthropic --type oauth</Cmd>
-                    <p className="text-[12px] text-faint">Uses your Claude Pro or Max plan's allowance, so there's no separate bill and no API key. Heavy use can hit your plan's limits; Talaria pauses and retries by itself.</p>
-                  </>
-                )}
-                {choice === 'copilot' && (
-                  <>
-                    <p className="text-[13px] leading-relaxed text-muted">Install the GitHub command-line tool if you don't have it, then sign in to GitHub. A browser window opens; approve the sign-in.</p>
-                    {windows && <Cmd>winget install --id GitHub.cli</Cmd>}
-                    <Cmd>gh auth login</Cmd>
-                    <p className="text-[12px] text-faint">Copilot needs to be switched on for your GitHub account at github.com/settings/copilot.</p>
-                  </>
-                )}
-                {choice === 'other' && (
-                  <>
-                    <p className="text-[13px] leading-relaxed text-muted">Run this in your terminal. It walks you through picking a provider, pasting your key and choosing a model. When you come back, Talaria fills in what you picked.</p>
-                    <Cmd>hermes model</Cmd>
-                  </>
-                )}
-              </>
-            )}
-
-            {choice === 'other' && (
-              <div className="grid gap-3 pt-2 sm:grid-cols-2">
-                <Field label="Provider" hint="For example: openrouter, gemini, anthropic">
-                  <Input value={otherProvider} list="talaria-providers" onChange={e => (setOtherProvider(e.target.value), setResult(null))} placeholder="e.g. openrouter" />
-                  <datalist id="talaria-providers">
-                    {otherProviders.map(p => (
-                      <option key={p} value={p} />
-                    ))}
-                  </datalist>
-                </Field>
-                <Field
-                  label="Model"
-                  hint={
-                    otherProvider.trim() === 'gemini'
-                      ? 'Pick a Flash model such as gemini-flash-latest. Pro and preview models are often overloaded on the free tier.'
-                      : models.length
-                        ? 'Leave it empty and Talaria picks one.'
-                        : undefined
-                  }
-                >
-                  <Input value={otherModel} list="talaria-models" onChange={e => (setOtherModel(e.target.value), setResult(null))} placeholder={models[0] ? `e.g. ${models[0]}` : 'e.g. gpt-4.1'} />
-                  <datalist id="talaria-models">
-                    {models.map(m => (
-                      <option key={m} value={m} />
-                    ))}
-                  </datalist>
-                </Field>
-              </div>
-            )}
-
-            {connected && choice !== 'other' ? (
-              <div className="space-y-3 pt-1">
-                <div className="inline-flex items-center gap-1.5 text-[13px] font-medium text-ok">
-                  <Check className="size-4" strokeWidth={3} /> It works!{result?.ok && result.latencyMs ? ` Answered in ${(result.latencyMs / 1000).toFixed(1)}s.` : ''}
-                </div>
-                <Field
-                  label={
-                    <span className="flex items-center gap-1.5">
-                      Model {connecting && <Loader className="size-3 animate-spin text-gold" />}
-                    </span>
-                  }
-                  hint={connecting ? `Trying ${connecting}…` : `Talaria picked one your account accepts; you can leave it. ${MODEL_HINT[choice] ?? ''}`}
-                >
-                  <select
-                    value={settings.hermes.model}
-                    disabled={Boolean(connecting)}
-                    onChange={e => connect(e.target.value)}
-                    className="h-9 w-full border border-line bg-card px-2.5 text-[13.5px] text-ink outline-none focus:border-accent/60 disabled:opacity-60 sm:max-w-xs"
-                  >
-                    {[...new Set([settings.hermes.model, ...models])].map(m => (
-                      <option key={m} value={m}>
-                        {m}
-                        {m === accounts?.defaults[choice] ? ' (recommended)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-            ) : (
-              <div className="flex flex-wrap items-center gap-3 pt-1">
-                <Button variant="primary" loading={Boolean(connecting)} disabled={!provider} onClick={() => connect(choice === 'other' ? otherModel : undefined)}>
-                  {connecting ? 'Connecting, about 15 seconds…' : signedIn || choice === 'other' ? 'Connect' : "I've signed in, connect"}
-                </Button>
-                {connected && (
-                  <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-ok">
-                    <Check className="size-4" strokeWidth={3} /> Connected, using {settings.hermes.model}
-                  </span>
-                )}
-              </div>
-            )}
-            {result && !result.ok && <p className="bg-bad-soft px-3 py-2 text-[12.5px] leading-relaxed text-bad">{result.message}</p>}
-          </div>
-        </div>
-      )}
+      <AIConnect onConnected={() => setConnected(true)} />
 
       {/* 3. Optional extras */}
       <div className="mt-5 space-y-2">

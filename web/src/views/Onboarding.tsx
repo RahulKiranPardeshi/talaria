@@ -91,18 +91,18 @@ const SLOW_READ_SEC = 45;
 
 /** Which model reads your resume: the main one, or a faster one just for this. */
 function ReaderModel({ value, onChange }: { value: string; onChange: (model: string) => void }) {
-  const hermes = useApp(s => s.settings?.hermes);
+  const ai = useApp(s => s.settings?.ai);
   const [models, setModels] = React.useState<string[]>([]);
   React.useEffect(() => {
-    if (hermes?.provider) api.get<Record<string, string[]>>('/api/hermes/models', { quiet: true }).then(m => setModels(m[hermes.provider] || [])).catch(() => {});
-  }, [hermes?.provider]);
-  if (!hermes) return null;
+    if (ai?.provider) api.get<Record<string, string[]>>('/api/ai/models', { quiet: true }).then(m => setModels(m[ai.provider] || [])).catch(() => {});
+  }, [ai?.provider]);
+  if (!ai) return null;
   const hint =
-    hermes.provider === 'gemini'
+    ai.provider === 'gemini'
       ? "On Gemini's free tier, gemini-flash-lite-latest or gemini-flash-latest read a resume fastest."
       : 'A smaller model (Flash, mini, Haiku) usually reads a resume in under a minute.';
   return (
-    <Field label="Who reads it" hint={`${hint} This only changes who reads your resume; Settings keeps your main model (${hermes.model}).`}>
+    <Field label="Who reads it" hint={`${hint} This only changes who reads your resume; Settings keeps your main model (${ai.model}).`}>
       <ModelSelect value={value} options={['', ...models]} onChange={onChange} />
     </Field>
   );
@@ -438,7 +438,7 @@ function ResumeStep({ kicker, next, back }: Nav) {
       <div className="mt-5">
         <ReaderModel value={reader} onChange={setReader} />
       </div>
-      <p className="mt-3 text-[12.5px] text-faint">Your resume stays on this computer; only its text goes to your AI provider, through Hermes.</p>
+      <p className="mt-3 text-[12.5px] text-faint">Your resume stays on this computer; only its text goes to your AI provider.</p>
 
       <StepFooter back={replacing ? () => setReplacing(false) : back} backLabel={replacing ? 'Keep the current one' : 'Back'}>
         <Button variant="ghost" onClick={() => setPaste(p => !p)}>

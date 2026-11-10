@@ -2,7 +2,7 @@
 // doctoral positions in your research fields, judges the fit, and each position is read from its
 // own page. They land in Discovered tagged as PhDs, separate from full-time roles.
 import type { Job } from '../../shared/types.ts';
-import { askJson, finishRun, startRun, type RunHandle } from '../lib/hermes.ts';
+import { askJson, finishRun, startRun, type RunHandle } from '../lib/ai/index.ts';
 import { toast } from '../lib/events.ts';
 import { dedupeKey, getPreferences, getProfile, getSettings, hasSeen, insertJob, listJobs, markSeen, newId, now } from '../lib/store.ts';
 import { jobTrack } from '../../shared/track.ts';
@@ -67,7 +67,7 @@ export const phdSearchRunning = () => Boolean(running);
 async function run(opts: { quiet?: boolean }): Promise<{ added: number; found: number }> {
   const profile = getProfile();
   if (!profile) throw new Error('Add your resume first.');
-  if (!getSettings().hermes.webSearch) throw new Error('Turn on "Let Hermes browse the web" in Settings › AI model to find PhD positions.');
+  if (!getSettings().ai.webSearch) throw new Error('Turn on "Search the web" in Settings › AI model to find PhD positions.');
   const prefs = getPreferences();
   const fields = prefs.phd?.fields?.length ? prefs.phd.fields : DEFAULT_PHD_FIELDS;
   const where = prefs.phd?.countries?.length ? prefs.phd.countries.join(', ') : 'anywhere in Europe';
@@ -79,7 +79,7 @@ async function run(opts: { quiet?: boolean }): Promise<{ added: number; found: n
     for (let i = 0; i < fields.length; i += 2) groups.push(fields.slice(i, i + 2));
     const batches = await Promise.all(
       groups.map(g =>
-        askJson<any[]>({ prompt: PROMPT({ profile: profileBrief(profile), fields: g, allFields: fields, where, n: 8 }), toolsets: ['web'], handle: h, timeoutSec: 480, priority: 1 })
+        askJson<any[]>({ prompt: PROMPT({ profile: profileBrief(profile), fields: g, allFields: fields, where, n: 8 }), web: true, handle: h, timeoutSec: 480, priority: 1 })
           .then(r => {
             h.log(`${g.join(' + ')}: ${Array.isArray(r) ? r.length : 0} found`);
             return Array.isArray(r) ? r : [];

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { aiProviderLabel } from '@shared/aiProviders';
 import { Activity, Archive, BarChart3, KanbanSquare, Moon, ScanSearch, Search, SlidersHorizontal, Sun } from 'lucide-react';
 import { openActivity } from '@/views/Activity';
 import { motion } from 'motion/react';
@@ -24,14 +25,14 @@ const NAV: NavItem[] = [
 export function Sidebar({ view }: { view: View }) {
   const needs = useApp(s => Object.values(s.jobs).filter(j => j.status === 'needs_input').length);
   const running = useApp(s => s.runs.filter(r => r.status === 'running' || r.status === 'queued').length);
-  const hermes = useApp(s => s.hermes);
+  const ai = useApp(s => s.ai);
   const settings = useApp(s => s.settings);
   const profile = useApp(s => s.profile);
   const prefs = useApp(s => s.preferences);
   const score = profile ? profileScore(profile, prefs) : 0;
   const theme = useTheme();
-  const checking = !hermes.ok && (!hermes.checkedAt || Boolean(hermes.checking));
-  const pausedAt = hermes.rateLimitedUntil && Date.parse(hermes.rateLimitedUntil) > Date.now() ? new Date(hermes.rateLimitedUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
+  const checking = !ai.ok && (!ai.checkedAt || Boolean(ai.checking));
+  const pausedAt = ai.rateLimitedUntil && Date.parse(ai.rateLimitedUntil) > Date.now() ? new Date(ai.rateLimitedUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
 
   const nextScout = React.useMemo(() => {
     const ap = settings?.autopilot;
@@ -54,7 +55,7 @@ export function Sidebar({ view }: { view: View }) {
         className="mb-4 flex h-9 items-center gap-2 border border-line bg-card px-2.5 text-[13px] text-faint shadow-[0_1px_1px_rgb(0_0_0/0.02)] transition-colors hover:text-muted"
       >
         <Search className="size-4 shrink-0" />
-        <span className="flex-1 truncate text-left">Search…</span>
+        <span className="min-w-0 flex-1 truncate text-left">Search…</span>
         <span className="flex shrink-0 gap-0.5">
           <Kbd>Ctrl</Kbd>
           <Kbd>K</Kbd>
@@ -89,22 +90,22 @@ export function Sidebar({ view }: { view: View }) {
             className="w-full border border-line bg-card p-3 pr-9 text-left shadow-[0_1px_1px_rgb(0_0_0/0.02)] transition-colors hover:border-ink/15"
           >
             <div className="flex items-center gap-2">
-              <StatusDot color={pausedAt ? 'var(--warn)' : hermes.ok ? 'var(--ok)' : checking ? 'var(--gold)' : hermes.installed ? 'var(--warn)' : 'var(--bad)'} pulse={running > 0 || checking} />
+              <StatusDot color={pausedAt ? 'var(--warn)' : ai.ok ? 'var(--ok)' : checking ? 'var(--gold)' : 'var(--bad)'} pulse={running > 0 || checking} />
               <span className="text-[12.5px] font-semibold text-ink">
-                Hermes {pausedAt ? 'paused' : hermes.ok ? (running > 0 ? 'working' : 'connected') : checking ? 'connecting…' : hermes.installed ? 'needs attention' : 'not found'}
+                AI {pausedAt ? 'paused' : ai.ok ? (running > 0 ? 'working' : 'connected') : checking ? 'connecting…' : 'needs attention'}
               </span>
             </div>
             <div className={cn('mt-1 flex items-center gap-1.5 pl-4 text-[11.5px]', running > 0 && !pausedAt ? 'font-medium text-gold' : 'text-muted')}>
               <span className="min-w-0 flex-1 truncate">
                 {pausedAt
-                  ? `Copilot rate limit · resumes ${pausedAt}`
+                  ? `${aiProviderLabel(ai.provider)} rate limit · resumes ${pausedAt}`
                   : running > 0
                     ? `${running} task${running === 1 ? '' : 's'} running`
-                    : hermes.ok
-                      ? `${hermes.provider === 'copilot' ? 'GitHub Copilot' : hermes.provider} · ${hermes.model}`
+                    : ai.ok
+                      ? `${aiProviderLabel(ai.provider)} · ${ai.model}`
                       : checking
                         ? 'Saying hello'
-                        : hermes.message}
+                        : ai.message}
               </span>
               <Activity className="size-3 shrink-0 opacity-70" />
             </div>

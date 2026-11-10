@@ -316,7 +316,7 @@ function ashbyJob(j: any, c: Pick<TargetCompany, 'name' | 'slug'>): RawJob {
   });
 }
 
-// ---------- hydrate a single posting from an ATS URL (used for Hermes web finds + manual adds) ----------
+// ---------- hydrate a single posting from an ATS URL (used for web-search finds + manual adds) ----------
 
 export async function hydrateFromUrl(url: string): Promise<RawJob | null> {
   let u: URL;

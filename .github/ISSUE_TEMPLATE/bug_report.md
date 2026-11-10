@@ -19,8 +19,7 @@ labels: bug
 **Your setup**
 - OS:
 - `node --version`:
-- `hermes --version`:
-- AI provider (ChatGPT/Codex, Copilot, API key):
+- AI provider (ChatGPT, Copilot, an API key):
 
 **Terminal output or Activity page error** (remove names and emails)
 

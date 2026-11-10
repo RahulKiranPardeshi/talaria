@@ -2,7 +2,7 @@
   "name": "talaria",
   "version": "1.0.0",
   "private": true,
-  "description": "Talaria — a job-hunt command center powered by your local Hermes agent.",
+  "description": "Talaria — a job-hunt command center that works with the AI account you already have.",
   "license": "MIT",
   "repository": {
     "type": "git",

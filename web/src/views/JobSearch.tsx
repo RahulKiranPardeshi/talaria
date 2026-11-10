@@ -155,7 +155,7 @@ const BUCKET: Partial<Record<SourceId, string>> = {
   smartrecruiters: 'Companies you watch',
   recruitee: 'Companies you watch',
   company_site: 'Companies you watch',
-  hermes_web: 'Hermes web search',
+  hermes_web: 'Web search',
   linkedin: 'LinkedIn',
   academic: 'PhD boards',
 };
@@ -165,7 +165,7 @@ function SearchRail({ prefs, dirty, onSave }: { prefs: Preferences; dirty: boole
   const scout = useApp(s => s.scout);
   const settings = useApp(s => s.settings);
   const jump = useSectionJump();
-  const webOn = Boolean(settings?.hermes.webSearch);
+  const webOn = Boolean(settings?.ai.webSearch);
 
   // Where this week's new jobs came from: a quick read on which sources are pulling their weight.
   const counts = React.useMemo(() => {
@@ -180,8 +180,8 @@ function SearchRail({ prefs, dirty, onSave }: { prefs: Preferences; dirty: boole
 
   const issues: { text: string; fix: () => void; label: string }[] = [];
   if (prefs.sources.linkedin && !settings?.linkedin.connected) issues.push({ text: 'LinkedIn is on, but not connected', fix: () => goSettings('connections'), label: 'Connect' });
-  if (prefs.sources.hermes_web && !webOn) issues.push({ text: "Hermes web search is on, but Hermes can't browse the web", fix: () => goSettings('ai'), label: 'Turn on' });
-  if (prefs.phd?.enabled && !webOn) issues.push({ text: 'PhD search needs Hermes to browse the web', fix: () => goSettings('ai'), label: 'Turn on' });
+  if (prefs.sources.hermes_web && !webOn) issues.push({ text: "Web search is on as a source, but searching the web is turned off", fix: () => goSettings('ai'), label: 'Turn on' });
+  if (prefs.phd?.enabled && !webOn) issues.push({ text: 'PhD search needs web search turned on', fix: () => goSettings('ai'), label: 'Turn on' });
   if (!prefs.roles.length && !(prefs.lookingFor || []).every(k => k === 'phd')) issues.push({ text: 'No roles yet, so Hermes has nothing to search for', fix: () => jump('want'), label: 'Add roles' });
   const anySource = Object.values(prefs.sources).some(Boolean) || prefs.customBoards.some(b => b.enabled) || prefs.targetCompanies.length > 0;
   if (!anySource) issues.push({ text: 'Every source is off', fix: () => jump('where'), label: 'Pick some' });
@@ -234,7 +234,7 @@ function SearchRail({ prefs, dirty, onSave }: { prefs: Preferences; dirty: boole
 // ---------------- sources ----------------
 
 export const BOARDS: { id: SourceId; name: string; desc: string }[] = [
-  { id: 'hermes_web', name: 'Hermes web search', desc: "Hermes searches the open web: companies' own career sites, Workday, Greenhouse, Lever and more." },
+  { id: 'hermes_web', name: 'Web search', desc: "The AI searches the open web: companies' own career sites, Workday, Greenhouse, Lever and more." },
   { id: 'remotive', name: 'Remotive', desc: 'Curated remote tech jobs.' },
   { id: 'remoteok', name: 'Remote OK', desc: 'Large feed of remote roles worldwide.' },
   { id: 'himalayas', name: 'Himalayas', desc: 'Remote jobs with salary data.' },
@@ -245,7 +245,7 @@ export const BOARDS: { id: SourceId; name: string; desc: string }[] = [
 
 /** The boards Talaria knows how to read, plus LinkedIn when you've connected it. */
 function BuiltInBoards({ prefs, onChange, withLinkedIn }: PrefsProps & { withLinkedIn?: boolean }) {
-  const webOn = useApp(s => Boolean(s.settings?.hermes.webSearch));
+  const webOn = useApp(s => Boolean(s.settings?.ai.webSearch));
   const linkedIn = useApp(s => Boolean(s.settings?.linkedin.connected));
   const toggle = (id: SourceId, v: boolean) => onChange({ sources: { ...prefs.sources, [id]: v } });
   const card = (id: SourceId, name: React.ReactNode, desc: React.ReactNode, note?: React.ReactNode, disabled?: boolean) => (
@@ -280,7 +280,7 @@ function BuiltInBoards({ prefs, onChange, withLinkedIn }: PrefsProps & { withLin
             {b.name}
           </>,
           b.desc,
-          b.id === 'hermes_web' && !webOn ? fixLink("Hermes can't browse the web. Turn it on in Settings", 'ai') : undefined,
+          b.id === 'hermes_web' && !webOn ? fixLink("Web search is turned off. Turn it on in Settings", 'ai') : undefined,
         ),
       )}
       {withLinkedIn &&
@@ -317,7 +317,7 @@ const HOW: Record<CustomBoard['how'], { label: string; icon: React.ReactNode }> 
 /** Job boards you add yourself: any site that lists jobs, searched alongside the built-in ones. */
 function CustomBoards({ prefs, onChange }: PrefsProps) {
   const boards = prefs.customBoards || [];
-  const webSearch = useApp(s => s.settings?.hermes.webSearch);
+  const webSearch = useApp(s => s.settings?.ai.webSearch);
   const [input, setInput] = React.useState('');
   const [adding, setAdding] = React.useState(false);
   const set = (customBoards: CustomBoard[]) => onChange({ customBoards });
@@ -334,7 +334,7 @@ function CustomBoards({ prefs, onChange }: PrefsProps) {
           ? `${b.name}: Talaria reads its job feed (${count} jobs in it now)`
           : b.how === 'page'
             ? `${b.name}: ${count} job links on the page. Talaria reads the ones that match your roles.`
-            : `${b.name}: its listings can't be read directly, so Hermes searches the site for your roles${webSearch ? '' : ' (turn on “Let Hermes browse the web” in Settings)'}.`,
+            : `${b.name}: its listings can't be read directly, so the AI searches the site for your roles${webSearch ? '' : ' (turn on “Search the web” in Settings)'}.`,
       );
       setInput('');
     } finally {
@@ -413,7 +413,7 @@ const PHD_FIELD_IDEAS = ['Haptics', 'XR / virtual and augmented reality', 'Autom
  * Its switch is the same thing as "PhD positions" under the kinds of work you want, so the two never disagree.
  */
 function PhdSettings({ prefs, onChange }: PrefsProps) {
-  const webOn = useApp(s => Boolean(s.settings?.hermes.webSearch));
+  const webOn = useApp(s => Boolean(s.settings?.ai.webSearch));
   const phd = prefs.phd || { enabled: false, fields: [], countries: [] };
   const kinds = prefs.lookingFor?.length ? prefs.lookingFor : (['full_time'] as WorkKind[]);
   const set = (patch: Partial<typeof phd>) => onChange({ phd: { ...phd, ...patch } });
@@ -433,7 +433,7 @@ function PhdSettings({ prefs, onChange }: PrefsProps) {
           </div>
           {phd.enabled && !webOn && (
             <button type="button" onClick={() => goSettings('ai')} className="mt-1.5 inline-flex items-center gap-1 text-[11.5px] font-medium text-warn hover:underline">
-              Needs Hermes to browse the web. Turn it on in Settings <ArrowRight className="size-3" />
+              Needs web search. Turn it on in Settings <ArrowRight className="size-3" />
             </button>
           )}
         </div>
