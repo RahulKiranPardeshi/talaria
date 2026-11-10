@@ -140,7 +140,7 @@ export function SettingsView() {
             </div>
             <div className="grid gap-5 p-5 sm:grid-cols-2">
               <Field label="Provider" hint="Any provider you've signed into with Hermes. Talaria tests it before switching.">
-                <ProviderSelect value={h.provider} options={Object.keys(models)} disabled={Boolean(trying)} onChange={provider => tryAndSave(provider, provider === 'copilot' ? 'gpt-4.1' : provider === 'openai-codex' ? 'gpt-5.6-terra' : (models[provider] || [])[0] || h.model)} />
+                <ProviderSelect value={h.provider} options={Object.keys(models)} disabled={Boolean(trying)} onChange={provider => tryAndSave(provider, (models[provider] || [])[0] || h.model)} />
               </Field>
               <Field
                 label={
@@ -154,7 +154,7 @@ export function SettingsView() {
                     : h.provider === 'copilot'
                       ? 'gpt-4.1 and gpt-4o are unlimited on Copilot. Premium models use your monthly quota and may need enabling at github.com/settings/copilot.'
                       : h.provider === 'openai-codex'
-                        ? 'Your ChatGPT account only accepts the gpt-5.6 models (sol, terra and luna). Calls count against your ChatGPT usage limits.'
+                        ? 'The list shows the models your ChatGPT plan offers. Calls count against your ChatGPT usage limits.'
                         : undefined
                 }
               >
@@ -322,7 +322,7 @@ function StatusRail() {
   );
 }
 
-function LinkedInSection() {
+export function LinkedInSection() {
   const li = useApp(s => s.settings?.linkedin);
   const enabled = useApp(s => Boolean(s.preferences?.sources.linkedin));
   const [connecting, setConnecting] = React.useState(false);
@@ -334,7 +334,6 @@ function LinkedInSection() {
     setConnecting(true);
     try {
       await api.post('/api/linkedin/connect');
-      toast('Sign in to LinkedIn in the Talaria browser window that just opened', { duration: 8000 });
     } catch {
       setConnecting(false);
     }
@@ -528,7 +527,7 @@ function VoiceSection() {
   );
 }
 
-function GmailSection() {
+export function GmailSection() {
   const g = useApp(s => s.settings?.gmail);
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -641,10 +640,10 @@ function Row({ title, desc, children, step }: { title: string; desc?: string; ch
   );
 }
 
-const PROVIDER_LABEL: Record<string, string> = { copilot: 'GitHub Copilot', anthropic: 'Anthropic', gemini: 'Google Gemini', openrouter: 'OpenRouter', openai: 'OpenAI', 'openai-codex': 'ChatGPT / Codex', nous: 'Nous Portal' };
+const PROVIDER_LABEL: Record<string, string> = { copilot: 'GitHub Copilot', anthropic: 'Claude (Anthropic)', gemini: 'Google Gemini', openrouter: 'OpenRouter', openai: 'OpenAI', 'openai-codex': 'ChatGPT / Codex', nous: 'Nous Portal' };
 
 function ProviderSelect({ value, options, onChange, disabled }: { value: string; options: string[]; onChange: (v: string) => void; disabled?: boolean }) {
-  const all = Array.from(new Set([value, 'copilot', 'openai-codex', ...options]));
+  const all = Array.from(new Set([value, 'openai-codex', 'anthropic', 'copilot', ...options]));
   return (
     <select disabled={disabled} value={value} onChange={e => onChange(e.target.value)} className="h-9 w-full border border-line bg-card px-2.5 text-[13.5px] text-ink outline-none focus:border-accent/60 disabled:opacity-60">
       {all.map(p => (

@@ -9,6 +9,7 @@ import { Card, EmptyState, IconButton, Segmented, Sheet } from '@/components/ui'
 
 const KIND: Record<RunKind, { icon: React.ElementType; label: string }> = {
   profile: { icon: SquareUser, label: 'Profile' },
+  story: { icon: PenLine, label: 'Your story' },
   scout: { icon: ScanSearch, label: 'Scout' },
   hermes_web: { icon: Globe, label: 'Web search' },
   score: { icon: Sparkles, label: 'Scoring' },

@@ -10,7 +10,7 @@ import path from 'node:path';
 import { WORK_DIR } from './paths.ts';
 import { getSettings, newId, now, saveRun } from './store.ts';
 import { emit } from './events.ts';
-import type { AgentRun, HermesStatus, RunKind } from '../../shared/types.ts';
+import type { AgentRun, HermesAccounts, HermesStatus, RunKind } from '../../shared/types.ts';
 
 const MAX_PROMPT_CHARS = 28000; // Windows caps a command line at 32,767 chars.
 
@@ -267,24 +267,42 @@ export function markRunning(h: RunHandle) {
   saveRun(h.run);
 }
 
+export interface TryResult {
+  ok: boolean;
+  model?: string;
+  message?: string;
+  latencyMs?: number;
+  modelRejected?: boolean; // the account works, it just doesn't offer this model
+}
+
+const MODEL_REJECTED = /not supported|model_not_supported|unsupported model|model[^.]*(not found|does not exist|not available)|invalid model|unknown model/i;
+
 /** Try a provider/model pair without saving it, so a bad pick can't break every agent task. */
-export async function tryModel(provider: string, model: string): Promise<{ ok: boolean; message?: string; latencyMs?: number }> {
+export async function tryModel(provider: string, model: string): Promise<TryResult> {
   const t0 = Date.now();
   try {
     const res = await callHermes({ prompt: 'Reply with exactly the word READY and nothing else.', provider, model, timeoutSec: CHECK_TIMEOUT_SEC, priority: 2, noWait: true });
-    return /READY/i.test(res.text) ? { ok: true, latencyMs: Date.now() - t0 } : { ok: false, message: `Unexpected reply: ${res.text.slice(0, 120)}` };
+    return /READY/i.test(res.text) ? { ok: true, model, latencyMs: Date.now() - t0 } : { ok: false, model, message: `Unexpected reply: ${res.text.slice(0, 120)}` };
   } catch (err: any) {
     const msg: string = err?.message || String(err);
-    if (provider === 'copilot' && /not supported|model_not_supported|unsupported model/i.test(msg)) {
-      return {
-        ok: false,
-        message: `GitHub Copilot hasn't enabled ${model} on your account. Turn it on at github.com/settings/copilot/features (e.g. the Anthropic Claude toggle), then try again.`,
-      };
+    if (MODEL_REJECTED.test(msg)) {
+      const message =
+        provider === 'copilot'
+          ? `GitHub Copilot hasn't enabled ${model} on your account. Turn it on at github.com/settings/copilot/features (e.g. the Anthropic Claude toggle), then try again.`
+          : provider === 'openai-codex'
+            ? `Your ChatGPT plan doesn't include ${model}. Pick another model.`
+            : provider === 'anthropic'
+              ? `Your Claude plan doesn't include ${model}. Pick another model.`
+            : `${provider} doesn't offer ${model} on your account. Pick another model.`;
+      return { ok: false, model, message, modelRejected: true };
+    }
+    if (provider === 'anthropic' && /credential|auth|log ?in|token|401|unauthori[sz]ed|api key/i.test(msg)) {
+      return { ok: false, model, message: `Hermes isn't signed in to Claude yet. In a terminal run: hermes auth add anthropic --type oauth — sign in in the browser window it opens, then try again.` };
     }
     if (provider === 'openai-codex' && /credential|auth|log ?in|token|401|unauthori[sz]ed/i.test(msg)) {
-      return { ok: false, message: `Hermes isn't signed in to ChatGPT yet. In a terminal run: hermes auth add openai-codex --type oauth — sign in in the browser window it opens, then test again.` };
+      return { ok: false, model, message: `Hermes isn't signed in to ChatGPT yet. In a terminal run: hermes auth add openai-codex --type oauth — sign in in the browser window it opens, then test again.` };
     }
-    return { ok: false, message: explainCheckFailure(msg, provider, model) };
+    return { ok: false, model, message: explainCheckFailure(msg, provider, model) };
   }
 }
 
@@ -298,6 +316,25 @@ function explainCheckFailure(msg: string, provider: string, model: string): stri
     return `Google Gemini ${what} with ${model}. Its free tier is often busy, especially on Pro and preview models. Try a Flash model such as gemini-flash-latest, then test again.${detail}`;
   }
   return `${providerName(provider)} ${what} with ${model}. Test again in a minute, or pick a smaller, faster model.${detail}`;
+}
+
+/**
+ * Connect a provider without asking the person for a model name. Given a model, only that one is
+ * tried; otherwise Talaria's pick for the provider goes first, then the next couple it offers, so
+ * an account that lacks one model still connects. A sign-in or network error stops the search,
+ * since no other model would fare better.
+ */
+export async function connectProvider(provider: string, model?: string): Promise<TryResult> {
+  if (model) return tryModel(provider, model);
+  const offered = (await listProviderModels())[provider] || [];
+  const candidates = [...new Set([DEFAULT_MODELS[provider], ...offered].filter(Boolean))].slice(0, 3);
+  if (!candidates.length) return { ok: false, message: `Talaria doesn't know which models ${provider} offers. Type the model name you chose in Hermes.` };
+  let last: TryResult = { ok: false };
+  for (const m of candidates) {
+    last = await tryModel(provider, m);
+    if (last.ok || !last.modelRejected) return last;
+  }
+  return last;
 }
 
 export function finishRun(h: RunHandle, ok: boolean, detail?: string, error?: string) {
@@ -620,18 +657,95 @@ export async function checkHermes(deep = true): Promise<HermesStatus> {
   return status;
 }
 
-/** The models a ChatGPT account (Hermes's openai-codex provider) accepts; others, gpt-4.1 to gpt-5.5, return HTTP 400 "not supported when using Codex with a ChatGPT account". */
+/** Fallback for when the live list can't be read: models every ChatGPT plan accepts. Older ones, gpt-4.1 to gpt-5.5, return HTTP 400 "not supported when using Codex with a ChatGPT account". */
 const CODEX_MODELS = ['gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-5.6-luna'];
 
+// Hermes's own bootstrap, then its Codex catalog lookup: the models this ChatGPT account offers right now.
+const CODEX_CATALOG = `
+import json
+from hermes_cli.auth import resolve_codex_runtime_credentials
+from hermes_cli.codex_models import get_codex_model_ids
+try:
+    c = resolve_codex_runtime_credentials(read_only=True)
+    print(json.dumps(list(get_codex_model_ids(c.get('api_key'), c.get('base_url')))))
+except Exception:
+    print('[]')
+`;
+
+let codexCache: { at: number; models: string[]; live: boolean } | null = null;
+let codexLookup: Promise<string[]> | null = null;
+
+/** The ChatGPT account's own model list (gpt-6 and newer included), asked through Hermes and kept for 10 minutes. */
+function codexModels(): Promise<string[]> {
+  // A failed lookup is retried sooner, since it usually means the person hasn't signed in yet.
+  if (codexCache && Date.now() - codexCache.at < (codexCache.live ? 10 : 0.5) * 60_000) return Promise.resolve(codexCache.models);
+  codexLookup ??= (async () => {
+    let models: string[] = [];
+    try {
+      const rt = await resolveRuntime();
+      const i = rt.indexOf('-c');
+      const code = rt[i + 1].replace(/runpy\.run_module\([\s\S]*$/, '') + CODEX_CATALOG;
+      const out = await execText(rt[0], [...rt.slice(1, i), '-c', code], 30000);
+      // The "-900k" twins only raise the context window; Talaria never needs that.
+      models = (JSON.parse(out.trim().split(/\r?\n/).pop() || '[]') as string[]).filter(m => !/-\d+k$/.test(m));
+    } catch {}
+    codexCache = { at: Date.now(), models: models.length ? models : CODEX_MODELS, live: models.length > 0 };
+    codexLookup = null;
+    return codexCache.models;
+  })();
+  return codexLookup;
+}
+
+/** Talaria's pick per subscription: one every plan accepts, and light on the plan's allowance (gpt-4.1 is unlimited on Copilot). */
+export const DEFAULT_MODELS: Record<string, string> = { 'openai-codex': 'gpt-5.6-terra', anthropic: 'claude-sonnet-5-5', copilot: 'gpt-4.1' };
+
+/** Claude's current models, for a Claude plan whose list Hermes hasn't fetched yet. */
+const ANTHROPIC_MODELS = ['claude-sonnet-5-5', 'claude-opus-5-5', 'claude-haiku-5-5', 'claude-fable-5-1'];
+
+/** Copilot also lists its own internal agents, and both list dated snapshots and retired models; none of them suit Talaria's work. */
+const NOT_A_CHAT_MODEL = /^(copilot-search|exec-agent|trajectory|mai-code)|-base$|-\d{4}(-\d{2}-\d{2})?$|-\d{8}$|^gpt-3\.5|^gpt-4(-|$)|-o-preview/;
+
+const readJson = (file: string) => JSON.parse(fs.readFileSync(path.join(hermesHome(), file), 'utf8'));
+
 export async function listProviderModels(): Promise<Record<string, string[]>> {
+  const out: Record<string, string[]> = {};
   try {
-    const home = process.env.HERMES_HOME || path.join(process.env.LOCALAPPDATA || '', 'hermes');
-    const raw = JSON.parse(fs.readFileSync(path.join(home, 'provider_models_cache.json'), 'utf8'));
-    const out: Record<string, string[]> = {};
-    for (const [k, v] of Object.entries<any>(raw)) if (Array.isArray(v?.models)) out[k] = v.models;
-    out['openai-codex'] = CODEX_MODELS;
-    return out;
+    for (const [k, v] of Object.entries<any>(readJson('provider_models_cache.json'))) if (Array.isArray(v?.models)) out[k] = v.models.filter((m: string) => !NOT_A_CHAT_MODEL.test(m));
+  } catch {}
+  // Anthropic lists some models twice ("claude-fable-5.1" and "claude-fable-5-1"); keep its own dashed form.
+  const claude = out.anthropic?.length ? out.anthropic : ANTHROPIC_MODELS;
+  out.anthropic = claude.filter(m => !/\d\.\d/.test(m) || !claude.includes(m.replace(/\./g, '-')));
+  out['openai-codex'] = await codexModels();
+  for (const [provider, model] of Object.entries(DEFAULT_MODELS)) if (out[provider]) out[provider] = [model, ...out[provider].filter(m => m !== model)];
+  return out;
+}
+
+/** The provider and model `hermes model` saved in Hermes's own config, read line by line to avoid a YAML dependency. */
+function hermesConfiguredModel(): { provider?: string; model?: string } {
+  try {
+    const lines = fs.readFileSync(path.join(hermesHome(), 'config.yaml'), 'utf8').split(/\r?\n/);
+    const start = lines.findIndex(l => /^model:\s*$/.test(l));
+    if (start < 0) return {};
+    const out: { provider?: string; model?: string } = {};
+    for (const line of lines.slice(start + 1)) {
+      if (/^\S/.test(line)) break;
+      const m = line.match(/^\s+(default|model|provider):\s*["']?([^"'#\s]+)/);
+      if (m) out[m[1] === 'provider' ? 'provider' : 'model'] ??= m[2];
+    }
+    return out.provider === 'auto' ? { model: out.model } : out;
   } catch {
-    return { 'openai-codex': CODEX_MODELS };
+    return {};
   }
+}
+
+/** Which accounts Hermes is signed in to (just the provider names, never the credentials) and what each offers. */
+export async function listAccounts(): Promise<HermesAccounts> {
+  let signedIn: string[] = [];
+  try {
+    const auth = readJson('auth.json');
+    signedIn = [...new Set([...Object.keys(auth?.credential_pool || {}), ...Object.keys(auth?.providers || {})])];
+  } catch {}
+  // Hermes may keep a Claude sign-in in its own file rather than the pool. Only whether it exists is checked.
+  if (!signedIn.includes('anthropic') && fs.existsSync(path.join(hermesHome(), '.anthropic_oauth.json'))) signedIn.push('anthropic');
+  return { signedIn, models: await listProviderModels(), defaults: DEFAULT_MODELS, configured: hermesConfiguredModel() };
 }

@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { ArrowRight, Globe, GraduationCap, List, Play, Plus, Rss, Search, Sparkles, X } from 'lucide-react';
+import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
+import { ArrowRight, Check, Globe, GraduationCap, List, Loader, Play, Plus, Rss, Search, Sparkles, X } from 'lucide-react';
 import type { CustomBoard, Job, Preferences, SourceId, TargetCompany, WorkKind } from '@shared/types';
 import { api } from '@/lib/api';
 import { startScout, useApp } from '@/lib/store';
@@ -7,8 +8,10 @@ import { navigate } from '@/lib/router';
 import { cn, timeAgo } from '@/lib/utils';
 import { Button, Card, ChipInput, Field, Input, Segmented, Switch } from '@/components/ui';
 import { PageSectionBlock, RailCard, SaveBar, SectionPage, StatusLine, useSectionJump } from '@/components/SectionPage';
-import { RolesFields, WhereFields, WorkKindFields, withKinds } from './Onboarding';
+import { RolesFields, SkipCompaniesField, WhereFields, WorkKindFields, withKinds } from './Onboarding';
 import { toast } from 'sonner';
+import { dismissLookup, lookUpCompany, receiveCompanies, useLookups, type Lookup } from '@/lib/companyLookups';
+import { countryOptions } from '@/lib/suggest';
 
 type PrefsProps = { prefs: Preferences; onChange: (p: Partial<Preferences>) => void };
 
@@ -60,9 +63,7 @@ export function JobSearchView() {
             <Field label="Keywords to avoid" hint="Jobs mentioning these are skipped.">
               <ChipInput value={prefs.excludeKeywords} onChange={excludeKeywords => change({ excludeKeywords })} placeholder="e.g. crypto, unpaid" />
             </Field>
-            <Field label="Companies to skip" hint="Your current employer, places you've ruled out.">
-              <ChipInput value={prefs.excludeCompanies} onChange={excludeCompanies => change({ excludeCompanies })} placeholder="e.g. current employer" />
-            </Field>
+            <SkipCompaniesField prefs={prefs} onChange={change} />
           </div>
           <Field label="Hide postings older than" hint="Stale postings are usually filled already.">
             <Segmented
@@ -444,7 +445,7 @@ function PhdSettings({ prefs, onChange }: PrefsProps) {
             <ChipInput value={phd.fields} onChange={fields => set({ fields })} placeholder="Add a field" suggestions={PHD_FIELD_IDEAS} />
           </Field>
           <Field label="Where" hint="Countries or cities. Leave empty for anywhere in Europe.">
-            <ChipInput value={phd.countries} onChange={countries => set({ countries })} placeholder="e.g. Sweden, Germany" suggestions={['Sweden', 'Germany', 'Netherlands', 'Denmark', 'Finland', 'Switzerland', 'United Kingdom']} />
+            <ChipInput value={phd.countries} onChange={countries => set({ countries })} placeholder="Start typing a country or region" search={countryOptions} suggestions={['Sweden', 'Germany', 'Netherlands', 'Denmark', 'Finland', 'Switzerland', 'United Kingdom']} />
           </Field>
         </div>
       )}
@@ -455,28 +456,25 @@ function PhdSettings({ prefs, onChange }: PrefsProps) {
 /** Companies you'd love to work for, read straight from wherever they post their jobs. */
 function CompaniesToWatch({ prefs, onChange }: PrefsProps) {
   const [input, setInput] = React.useState('');
-  const [adding, setAdding] = React.useState<string | null>(null);
   const [suggesting, setSuggesting] = React.useState(false);
   const [suggestions, setSuggestions] = React.useState<Suggestion[]>([]);
+  const lookups = useLookups(s => s.items);
 
-  // Talaria looks the company up (which platform, how many open jobs); you still press Save.
-  const add = async (text: string, name?: string) => {
+  // Several lookups can finish at once, before the new list comes back down: keep our own latest copy.
+  const companies = React.useRef(prefs.targetCompanies);
+  const seen = React.useRef(prefs.targetCompanies);
+  if (seen.current !== prefs.targetCompanies) seen.current = companies.current = prefs.targetCompanies;
+  const setCompanies = (next: TargetCompany[]) => {
+    companies.current = next;
+    onChange({ targetCompanies: next });
+  };
+  React.useEffect(() => receiveCompanies(c => setCompanies([...companies.current.filter(x => !(x.ats === c.ats && x.slug === c.slug)), c])));
+
+  // Talaria looks the company up in the background (which platform, how many open jobs); you keep typing.
+  const add = (text: string, name?: string) => {
     if (!text.trim()) return;
-    setAdding(name || text);
-    try {
-      const r = await api.post<{ company: TargetCompany; count: number; platform: string }>('/api/preferences/resolve-company', { input: text, name });
-      const c = r.company;
-      onChange({ targetCompanies: [...prefs.targetCompanies.filter(x => !(x.ats === c.ats && x.slug === c.slug)), c] });
-      setSuggestions(s => s.filter(x => x.name !== name));
-      toast.success(
-        c.ats === 'site'
-          ? `${c.name}: their own careers site. ${r.count ? `${r.count} jobs listed on the page; ` : ''}Hermes also searches it for your roles.`
-          : `${c.name}: ${r.platform}, ${r.count} open roles`,
-      );
-      setInput('');
-    } finally {
-      setAdding(null);
-    }
+    lookUpCompany(text, name);
+    if (name) setSuggestions(s => s.filter(x => x.name !== name));
   };
 
   const suggest = async () => {
@@ -497,7 +495,7 @@ function CompaniesToWatch({ prefs, onChange }: PrefsProps) {
           Add any company by name or by the link to its jobs page. Talaria finds where it posts: Greenhouse, Lever, Ashby, Workday, Workable, SmartRecruiters, Recruitee, or its own careers website, which Hermes searches for your roles.
         </div>
         <Button variant="secondary" size="sm" loading={suggesting} icon={<Sparkles className="size-3.5 text-gold" />} onClick={suggest}>
-          Suggest companies
+          {suggesting ? 'Hermes is looking…' : 'Suggest companies'}
         </Button>
       </div>
 
@@ -505,9 +503,14 @@ function CompaniesToWatch({ prefs, onChange }: PrefsProps) {
         <div className="mt-4 overflow-hidden border border-gold/20 bg-gold-soft/30">
           <div className="flex items-center justify-between border-b border-gold/15 px-3.5 py-2 text-[12px] font-semibold text-gold">
             Hermes suggests
-            <button onClick={() => setSuggestions([])} className="font-medium text-muted hover:text-ink">
-              Dismiss
-            </button>
+            <span className="flex items-center gap-3">
+              <button onClick={() => suggestions.forEach(sg => add(sg.url, sg.name))} className="font-semibold text-ink hover:underline">
+                Add all
+              </button>
+              <button onClick={() => setSuggestions([])} className="font-medium text-muted hover:text-ink">
+                Dismiss
+              </button>
+            </span>
           </div>
           {suggestions.map(sg => (
             <div key={sg.name} className="flex items-center gap-3 border-b border-gold/10 px-3.5 py-2.5 last:border-0">
@@ -520,7 +523,7 @@ function CompaniesToWatch({ prefs, onChange }: PrefsProps) {
                 </div>
                 <div className="text-[12px] leading-snug text-muted">{sg.why}</div>
               </div>
-              <Button size="sm" variant="secondary" loading={adding === sg.name} disabled={Boolean(adding)} icon={<Plus className="size-3.5" />} onClick={() => add(sg.url, sg.name)}>
+              <Button size="sm" variant="secondary" icon={<Plus className="size-3.5" />} onClick={() => add(sg.url, sg.name)}>
                 Add
               </Button>
             </div>
@@ -528,37 +531,103 @@ function CompaniesToWatch({ prefs, onChange }: PrefsProps) {
         </div>
       )}
 
-      {!prefs.targetCompanies.length && !suggestions.length && (
+      {!prefs.targetCompanies.length && !suggestions.length && !lookups.length && (
         <p className="mt-4 border border-dashed border-line px-3.5 py-3 text-[12.5px] leading-relaxed text-muted">
           No companies yet. Add the ones you'd love to work for below, or press <strong className="font-semibold text-ink">Suggest companies</strong> and Hermes picks some that fit your profile.
         </p>
       )}
-      <div className="mt-4 flex flex-wrap gap-1.5 empty:hidden">
-        {prefs.targetCompanies.map(c => (
-          <span key={`${c.ats}:${c.slug}`} title={c.url || undefined} className="inline-flex h-7 items-center gap-1.5 bg-ink/[0.05] pr-1 pl-2.5 text-[12.5px] font-medium text-ink-2 dark:bg-white/[0.07]">
-            {c.ats === 'site' && <Globe className="size-3 text-faint" />}
-            {c.name}
-            <span className="text-[11px] font-normal text-faint">{PLATFORM[c.ats] || c.ats}</span>
-            <button aria-label={`Remove ${c.name}`} onClick={() => onChange({ targetCompanies: prefs.targetCompanies.filter(x => x !== c) })} className="p-0.5 text-faint hover:bg-ink/10 hover:text-ink">
-              <X className="size-3" />
-            </button>
-          </span>
-        ))}
-      </div>
+      {/* Every chip animates its position, so when one arrives or leaves the rest glide into place. */}
+      <LayoutGroup>
+        <div className="mt-4 flex flex-wrap gap-1.5 empty:hidden">
+          <AnimatePresence initial={false}>
+            {prefs.targetCompanies.map(c => (
+              <motion.span
+                key={`${c.ats}:${c.slug}`}
+                layout
+                layoutId={`company:${c.ats}:${c.slug}`}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={CHIP_MOTION}
+                title={c.url || undefined}
+                className="inline-flex h-7 items-center gap-1.5 bg-ink/[0.05] pr-1 pl-2.5 text-[12.5px] font-medium text-ink-2 dark:bg-white/[0.07]"
+              >
+                {c.ats === 'site' && <Globe className="size-3 text-faint" />}
+                {c.name}
+                <span className="text-[11px] font-normal text-faint">{PLATFORM[c.ats] || c.ats}</span>
+                <button aria-label={`Remove ${c.name}`} onClick={() => setCompanies(companies.current.filter(x => x !== c))} className="p-0.5 text-faint hover:bg-ink/10 hover:text-ink">
+                  <X className="size-3" />
+                </button>
+              </motion.span>
+            ))}
+            {lookups.map(l => (
+              <LookupChip key={l.id} lookup={l} onRetry={() => (setInput(l.input), dismissLookup(l.id))} />
+            ))}
+          </AnimatePresence>
+        </div>
+      </LayoutGroup>
+      {lookups.some(l => l.state === 'failed') && (
+        <div className="mt-2 space-y-1">
+          {lookups
+            .filter(l => l.state === 'failed')
+            .map(l => (
+              <p key={l.id} className="text-[12px] leading-snug text-bad">
+                <strong className="font-semibold">{l.label}:</strong> {l.note} Click it to edit it and try again.
+              </p>
+            ))}
+        </div>
+      )}
       <form
         onSubmit={e => {
           e.preventDefault();
           add(input);
+          setInput('');
         }}
         className="mt-4 flex gap-2"
       >
         <Input className="flex-1" value={input} onChange={e => setInput(e.target.value)} placeholder="Company name or careers link, e.g. Volvo Cars or capgemini.com/se-en/careers" />
-        <Button type="submit" variant="secondary" loading={Boolean(adding) && adding === input} disabled={!input.trim() || Boolean(adding)} icon={<Plus className="size-4" />}>
+        <Button type="submit" variant="secondary" disabled={!input.trim()} icon={<Plus className="size-4" />}>
           Add
         </Button>
       </form>
-      <p className="mt-2 text-[11.5px] text-faint">A link is fastest. With just a name, Talaria checks the common hiring platforms, then asks Hermes to find their careers site (up to a minute).</p>
+      <p className="mt-2 text-[11.5px] text-faint">Add as many as you like; each is looked up in the background. A link is fastest. With just a name, Talaria checks the common hiring platforms, then asks Hermes to find their careers site (up to a minute).</p>
     </div>
+  );
+}
+
+// Chips slide to their new spot on a soft spring instead of jumping there.
+const CHIP_MOTION = { duration: 0.25, layout: { type: 'spring', stiffness: 260, damping: 30, mass: 0.9 } } as const;
+
+/** A company being looked up: working, then a green pop when found, or a red shake when not. */
+function LookupChip({ lookup: l, onRetry }: { lookup: Lookup; onRetry: () => void }) {
+  return (
+    <motion.span
+      layout
+      // Once found, it shares an id with the company chip it becomes, so it moves into its place in the list.
+      layoutId={l.company ? `company:${l.company.ats}:${l.company.slug}` : undefined}
+      initial={{ opacity: 0, scale: 0.85 }}
+      animate={l.state === 'found' ? { opacity: 1, scale: [1, 1.12, 1] } : l.state === 'failed' ? { opacity: 1, scale: 1, x: [0, -5, 5, -4, 4, -2, 0] } : { opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ ...CHIP_MOTION, duration: l.state === 'working' ? 0.18 : 0.45 }}
+      title={l.state === 'failed' ? `${l.note} Click to edit it and try again.` : undefined}
+      onClick={l.state === 'failed' ? onRetry : undefined}
+      className={cn(
+        'inline-flex h-7 items-center gap-1.5 pr-1 pl-2.5 text-[12.5px] font-medium transition-colors duration-300',
+        l.state === 'working' && 'bg-ink/[0.05] text-muted dark:bg-white/[0.07]',
+        l.state === 'found' && 'bg-ok-soft pr-2.5 text-ok ring-1 ring-ok/30',
+        l.state === 'failed' && 'cursor-pointer bg-bad-soft text-bad ring-1 ring-bad/30',
+      )}
+    >
+      {l.state === 'working' && <Loader className="size-3 animate-spin" />}
+      {l.state === 'found' && <Check className="size-3" strokeWidth={3} />}
+      {l.label}
+      <span className="text-[11px] font-normal opacity-75">{l.state === 'working' ? 'finding jobs page…' : l.state === 'found' ? l.note : "couldn't find it"}</span>
+      {l.state !== 'found' && (
+        <button aria-label={`Dismiss ${l.label}`} onClick={e => (e.stopPropagation(), dismissLookup(l.id))} className="p-0.5 opacity-70 hover:bg-ink/10 hover:opacity-100">
+          <X className="size-3" />
+        </button>
+      )}
+    </motion.span>
   );
 }
 

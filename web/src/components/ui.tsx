@@ -178,21 +178,105 @@ export function Segmented<T extends string>({ value, onChange, options, size = '
   );
 }
 
-export function ChipInput({ value, onChange, placeholder, suggestions = [] }: { value: string[]; onChange: (v: string[]) => void; placeholder?: string; suggestions?: string[] }) {
+/** A choice in a type-ahead list: what gets saved, and an optional grey note beside it. */
+export type Option = { value: string; hint?: string; added?: boolean };
+
+/**
+ * Keyboard and mouse handling for a type-ahead list under an input. Arrow keys move, Enter picks,
+ * Escape closes; `onKeyDown` returns true when it used the key.
+ */
+function useTypeahead(options: Option[], pick: (value: string) => void) {
+  const [active, setActive] = React.useState(0);
+  const [open, setOpen] = React.useState(true);
+  const shown = open ? options : [];
+  // Start on the first choice you haven't added yet.
+  React.useEffect(() => setActive(Math.max(0, options.findIndex(o => !o.added))), [options.map(o => o.value).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const choose = (o: Option) => !o.added && pick(o.value);
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (!shown.length) return false;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') setActive(a => (a + (e.key === 'ArrowDown' ? 1 : shown.length - 1)) % shown.length);
+    else if (e.key === 'Enter' || e.key === 'Tab') {
+      const o = shown[Math.min(active, shown.length - 1)];
+      // Everything that matches is already added: Enter just closes the list.
+      if (o.added) setOpen(false);
+      else choose(o);
+    } else if (e.key === 'Escape') setOpen(false);
+    else return false;
+    e.preventDefault();
+    return true;
+  };
+  const list = shown.length ? (
+    <div role="listbox" className="absolute top-full right-0 left-0 z-30 mt-1 overflow-hidden border border-line bg-card py-1 shadow-pop">
+      {shown.map((o, i) => (
+        <button
+          key={o.value}
+          type="button"
+          role="option"
+          aria-selected={i === active}
+          aria-disabled={o.added}
+          // Keep focus in the input, so picking doesn't count as leaving the field.
+          onMouseDown={e => e.preventDefault()}
+          onMouseEnter={() => setActive(i)}
+          onClick={() => choose(o)}
+          className={cn('flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-[13px]', i === active ? 'bg-ink/[0.06] dark:bg-white/[0.08]' : '', o.added && 'cursor-default')}
+        >
+          <span className={cn('flex max-w-[65%] shrink-0 items-center gap-1.5 truncate', o.added ? 'text-muted' : 'text-ink')}>
+            {o.added && <Check className="size-3.5 shrink-0 text-ok" strokeWidth={3} />}
+            <span className="truncate">{o.value}</span>
+          </span>
+          {o.added ? <span className="shrink-0 text-[11.5px] font-medium text-ok">Added</span> : o.hint && <span className="min-w-0 truncate text-[11.5px] text-faint">{o.hint}</span>}
+        </button>
+      ))}
+    </div>
+  ) : null;
+  return { list, onKeyDown, reopen: () => setOpen(true), close: () => setOpen(false) };
+}
+
+/** A single-value input that suggests as you type, but still accepts anything typed. */
+export function SuggestInput({ value, onChange, search, placeholder, className }: { value: string; onChange: (v: string) => void; search: (q: string) => Option[]; placeholder?: string; className?: string }) {
+  const [typing, setTyping] = React.useState(false);
+  const options = typing && value.trim() ? search(value).filter(o => o.value.toLowerCase() !== value.trim().toLowerCase()) : [];
+  const ta = useTypeahead(options, v => (onChange(v), setTyping(false)));
+  return (
+    <div className="relative">
+      <Input
+        value={value}
+        placeholder={placeholder}
+        className={className}
+        onChange={e => (onChange(e.target.value), setTyping(true), ta.reopen())}
+        onKeyDown={e => ta.onKeyDown(e)}
+        onBlur={() => setTyping(false)}
+      />
+      {ta.list}
+    </div>
+  );
+}
+
+export function ChipInput({ value, onChange, placeholder, suggestions = [], search }: { value: string[]; onChange: (v: string[]) => void; placeholder?: string; suggestions?: string[]; search?: (q: string) => Option[] }) {
   const [draft, setDraft] = React.useState('');
+  const field = React.useRef<HTMLInputElement>(null);
+  const has = (s: string) => value.some(v => v.toLowerCase() === s.toLowerCase());
   const add = (raw: string) => {
     const items = raw
       .split(/[,\n]/)
       .map(s => s.trim())
       .filter(Boolean)
-      .filter(s => !value.some(v => v.toLowerCase() === s.toLowerCase()));
+      .filter(s => !has(s));
     if (items.length) onChange([...value, ...items]);
     setDraft('');
   };
-  const sugg = suggestions.filter(s => !value.some(v => v.toLowerCase() === s.toLowerCase())).slice(0, 8);
+  // With a search, commas belong to names ("Berlin, Germany"), so only a picked option or Enter adds.
+  // What you've already added stays in the list, ticked, so you can see it's there.
+  const options = search && draft.trim() ? search(draft).map(o => ({ ...o, added: has(o.value) })) : [];
+  const ta = useTypeahead(options, v => (onChange([...value, v]), setDraft('')));
+  const sugg = suggestions.filter(s => !has(s)).slice(0, 8);
   return (
     <div>
-      <div className={cn(inputCls, 'flex min-h-9 flex-wrap items-center gap-1.5 px-1.5 py-1.5 focus-within:border-accent/60 focus-within:ring-[3px] focus-within:ring-accent/15')}>
+      {/* A click on the box's empty space goes to the typing field. */}
+      <div
+        onMouseDown={e => e.target === e.currentTarget && (e.preventDefault(), field.current?.focus())}
+        className={cn(inputCls, 'relative flex min-h-9 cursor-text flex-wrap items-center gap-1.5 px-1.5 py-1.5 focus-within:border-accent/60 focus-within:ring-[3px] focus-within:ring-accent/15')}
+      >
         {value.map(v => (
           <span key={v} className="inline-flex h-6 items-center gap-1 bg-ink/[0.06] pr-1 pl-2 text-[12.5px] font-medium text-ink-2 dark:bg-white/[0.08]">
             {v}
@@ -202,18 +286,26 @@ export function ChipInput({ value, onChange, placeholder, suggestions = [] }: { 
           </span>
         ))}
         <input
+          ref={field}
           value={draft}
-          onChange={e => setDraft(e.target.value)}
+          onChange={e => (setDraft(e.target.value), ta.reopen())}
           onKeyDown={e => {
-            if ((e.key === 'Enter' || e.key === ',') && draft.trim()) {
+            if (ta.onKeyDown(e)) return;
+            if ((e.key === 'Enter' || (e.key === ',' && !search)) && draft.trim()) {
               e.preventDefault();
-              add(draft);
+              search ? (onChange([...value, draft.trim()].filter((v, i, a) => a.findIndex(x => x.toLowerCase() === v.toLowerCase()) === i)), setDraft('')) : add(draft);
             } else if (e.key === 'Backspace' && !draft && value.length) onChange(value.slice(0, -1));
           }}
-          onBlur={() => draft.trim() && add(draft)}
-          placeholder={value.length ? '' : placeholder}
-          className="h-6 min-w-[120px] flex-1 bg-transparent px-1.5 text-[13.5px] outline-none placeholder:text-faint"
+          // Leaving a search field only closes its list: half a word shouldn't become a chip.
+          onBlur={() => (search ? ta.close() : draft.trim() && add(draft))}
+          placeholder={value.length ? 'Type here to add more' : placeholder}
+          // Once there are chips, the typing spot gets its own outline, so it's clear you can add more.
+          className={cn(
+            'h-6 min-w-[150px] flex-1 bg-transparent px-1.5 text-[13.5px] outline-none placeholder:text-faint',
+            value.length > 0 && 'border border-dashed border-line px-2 focus:border-solid focus:border-accent/60 focus:bg-card',
+          )}
         />
+        {ta.list}
       </div>
       {sugg.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
