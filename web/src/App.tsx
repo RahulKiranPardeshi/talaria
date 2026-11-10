@@ -43,7 +43,7 @@ export function App() {
       <Toaster
         position="bottom-right"
         theme={theme}
-        toastOptions={{ className: '!rounded-xl !border-0 !shadow-pop !font-sans !text-[13px] !bg-raised !text-ink' }}
+        toastOptions={{ className: '!border-0 !shadow-pop !font-sans !text-[13px] !bg-raised !text-ink' }}
         offset={18}
       />
       {!loaded && <Splash error={error} />}
@@ -83,7 +83,7 @@ function Splash({ error }: { error: string | null }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-bg">
       <div className="flex flex-col items-center gap-4">
-        <div className="grid size-14 animate-float place-items-center rounded-2xl bg-[#17161c] shadow-lift dark:ring-1 dark:ring-white/10">
+        <div className="grid size-14 animate-float place-items-center bg-[#17161c] shadow-lift dark:ring-1 dark:ring-white/10">
           <Logo className="size-10" animated />
         </div>
         <p className="text-[13px] text-muted">{error ? 'Waiting for the Talaria server…' : 'Loading your board…'}</p>

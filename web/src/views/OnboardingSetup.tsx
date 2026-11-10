@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { createPortal } from 'react-dom';
-import { ArrowLeft, ArrowRight, Check, ChevronDown, CircleDashed, HardDrive, Loader2, MessageSquare, RefreshCw, Search, Send, ShieldCheck, FileText } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, ChevronDown, FileText, HardDrive, Loader, MessageSquare, RefreshCw, Search, Send, ShieldCheck, SquareDashed } from 'lucide-react';
 import type { SetupStatus } from '@shared/types';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
@@ -58,7 +58,7 @@ export function SkipLink({ onClick, title, children = 'Skip for now' }: { onClic
 /** A terminal command the person can copy with one click. */
 function Cmd({ children }: { children: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg bg-[#17161c] py-1.5 pr-1.5 pl-3 font-mono text-[12.5px] text-[#e9e7f2]">
+    <div className="flex items-center gap-2 bg-[#17161c] py-1.5 pr-1.5 pl-3 font-mono text-[12.5px] text-[#e9e7f2]">
       <span className="min-w-0 flex-1 truncate select-all">{children}</span>
       <CopyButton text={children} className="border-white/15 text-[#e9e7f2] hover:bg-white/10" />
     </div>
@@ -83,8 +83,8 @@ export function WelcomeStep({ kicker, next }: { kicker: string; next: () => void
 
       <ul className="space-y-3">
         {WHAT_WE_ASK.map(({ icon: Icon, title, body }) => (
-          <li key={title} className="flex gap-4 rounded-2xl bg-card p-4 shadow-card">
-            <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-gold-soft text-gold">
+          <li key={title} className="flex gap-4 bg-card p-4 shadow-card">
+            <div className="grid size-10 shrink-0 place-items-center bg-gold-soft text-gold">
               <Icon className="size-5" />
             </div>
             <div>
@@ -128,7 +128,7 @@ const PROVIDERS: { id: ProviderId; name: string; who: string; provider: string; 
 function Collapsible({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = React.useState(defaultOpen);
   return (
-    <div className="rounded-xl bg-card shadow-card">
+    <div className="bg-card shadow-card">
       <button type="button" onClick={() => setOpen(o => !o)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-[13.5px] font-medium text-ink">
         {title}
         <ChevronDown className={cn('size-4 text-faint transition-transform', open && 'rotate-180')} />
@@ -141,8 +141,8 @@ function Collapsible({ title, children, defaultOpen = false }: { title: string; 
 function CheckRow({ ok, pending, title, children }: { ok: boolean; pending?: boolean; title: string; children?: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3">
-      <div className={cn('mt-0.5 grid size-5 shrink-0 place-items-center rounded-full', ok ? 'bg-ok-soft text-ok' : 'bg-ink/5 text-faint')}>
-        {pending ? <Loader2 className="size-3 animate-spin" /> : ok ? <Check className="size-3" strokeWidth={3} /> : <CircleDashed className="size-3" />}
+      <div className={cn('mt-0.5 grid size-5 shrink-0 place-items-center ', ok ? 'bg-ok-soft text-ok' : 'bg-ink/5 text-faint')}>
+        {pending ? <Loader className="size-3 animate-spin" /> : ok ? <Check className="size-3" strokeWidth={3} /> : <SquareDashed className="size-3" />}
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-[13.5px] font-medium text-ink">{title}</div>
@@ -209,7 +209,7 @@ export function ConnectStep({ kicker, next, back }: { kicker: string; next: () =
       </StepHeader>
 
       {/* 1. Hermes installed? */}
-      <div className="rounded-2xl bg-card p-5 shadow-card">
+      <div className="bg-card p-5 shadow-card">
         <CheckRow ok={hermes.installed} pending={looking} title={hermes.installed ? `Hermes is installed${hermes.version ? ` (v${hermes.version})` : ''}` : looking ? 'Looking for Hermes…' : 'Hermes is not installed yet'}>
           {!hermes.installed && !looking && (
             <div className="mt-2 space-y-2.5">
@@ -236,9 +236,9 @@ export function ConnectStep({ kicker, next, back }: { kicker: string; next: () =
                   key={p.id}
                   type="button"
                   onClick={() => pick(p.id)}
-                  className={cn('flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors', choice === p.id ? 'border-ink bg-card shadow-card' : 'border-line bg-card/60 hover:border-ink/30')}
+                  className={cn('flex items-center gap-3 border px-4 py-3 text-left transition-colors', choice === p.id ? 'border-ink bg-card shadow-card' : 'border-line bg-card/60 hover:border-ink/30')}
                 >
-                  <span className={cn('grid size-5 shrink-0 place-items-center rounded-full border', choice === p.id ? 'border-ink bg-ink text-bg' : 'border-line')}>{choice === p.id && <Check className="size-3" strokeWidth={3} />}</span>
+                  <span className={cn('grid size-5 shrink-0 place-items-center border', choice === p.id ? 'border-ink bg-ink text-bg' : 'border-line')}>{choice === p.id && <Check className="size-3" strokeWidth={3} />}</span>
                   <span>
                     <span className="block text-[14px] font-semibold text-ink">{p.name}</span>
                     <span className="block text-[12.5px] text-muted">{p.who}</span>
@@ -248,7 +248,7 @@ export function ConnectStep({ kicker, next, back }: { kicker: string; next: () =
             </div>
           </div>
 
-          <div className="space-y-2.5 rounded-2xl bg-card p-5 shadow-card">
+          <div className="space-y-2.5 bg-card p-5 shadow-card">
             <div className="text-[13.5px] font-semibold text-ink">Sign in (one time)</div>
             {choice === 'openai-codex' && (
               <>
@@ -291,7 +291,7 @@ export function ConnectStep({ kicker, next, back }: { kicker: string; next: () =
                 </span>
               )}
             </div>
-            {result && !result.ok && <p className="rounded-lg bg-bad-soft px-3 py-2 text-[12.5px] leading-relaxed text-bad">{result.message}</p>}
+            {result && !result.ok && <p className="bg-bad-soft px-3 py-2 text-[12.5px] leading-relaxed text-bad">{result.message}</p>}
           </div>
         </div>
       )}

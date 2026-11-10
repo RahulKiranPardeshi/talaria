@@ -89,18 +89,19 @@
 }
 
 .dark {
-  --bg: #0e0e11;
-  --panel: #131317;
-  --card: #19191e;
-  --raised: #1e1e24;
-  --ink: #f2f1f6;
-  --ink-2: #d1cfda;
-  --muted: #9a98a6;
-  --faint: #696774;
-  --line: #2a2a31;
-  --line-2: #212127;
+  /* Black working area, 85% black for the sidebar and secondary surfaces, neutral greys (no blue tint). */
+  --bg: #000000;
+  --panel: #262626;
+  --card: #1c1c1c;
+  --raised: #2a2a2a;
+  --ink: #f5f5f5;
+  --ink-2: #d6d6d6;
+  --muted: #a1a1a1;
+  --faint: #6b6b6b;
+  --line: #383838;
+  --line-2: #2b2b2b;
   --accent: #8d87ff;
-  --accent-ink: #0e0e11;
+  --accent-ink: #000000;
   --accent-soft: #24233b;
   --gold: #e7b04c;
   --gold-soft: #2b2416;
@@ -121,7 +122,7 @@
   --st-offer: #4fca82;
   --st-archived: #6f6e78;
 
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 0 0 1px rgb(255 255 255 / 0.05);
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.07);
   --shadow-lift: 0 18px 40px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.08);
   --shadow-pop: 0 30px 70px -20px rgb(0 0 0 / 0.8), 0 0 0 1px rgb(255 255 255 / 0.08);
 }
@@ -146,6 +147,40 @@ body {
   background: color-mix(in oklab, var(--accent) 22%, transparent);
 }
 
+/* Square, everywhere: no rounded corners and no round line ends, including in
+   third-party parts (toasts, menus, native controls) and anything added later. */
+*,
+*::before,
+*::after {
+  border-radius: 0 !important;
+}
+svg.lucide {
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+input[type='checkbox'] {
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex-shrink: 0;
+  border: 1.5px solid color-mix(in oklab, var(--ink) 35%, transparent);
+  background: var(--card);
+  cursor: pointer;
+}
+input[type='checkbox']:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+input[type='checkbox']:checked::after {
+  content: '';
+  width: 55%;
+  height: 30%;
+  margin-top: -15%;
+  border: solid white;
+  border-width: 0 0 2px 2px;
+  transform: rotate(-45deg);
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in oklab, var(--ink) 16%, transparent) transparent;
@@ -154,7 +189,6 @@ body {
 :focus-visible {
   outline: 2px solid color-mix(in oklab, var(--accent) 70%, transparent);
   outline-offset: 2px;
-  border-radius: 6px;
 }
 
 /* headings: the body face, set tighter and heavier */
@@ -174,7 +208,6 @@ body {
   background: linear-gradient(90deg, var(--line-2) 25%, color-mix(in oklab, var(--line) 80%, var(--card)) 50%, var(--line-2) 75%);
   background-size: 200% 100%;
   animation: var(--animate-shimmer);
-  border-radius: 6px;
 }
 
 /* job description prose */
@@ -261,7 +294,6 @@ body {
   top: 0.68em;
   width: 5px;
   height: 5px;
-  border-radius: 99px;
   background: var(--accent);
   opacity: 0.7;
 }

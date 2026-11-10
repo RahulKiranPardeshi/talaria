@@ -95,7 +95,7 @@ export function JobSearchView() {
         <PhdSettings prefs={prefs} onChange={change} />
       </PageSectionBlock>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-line p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border border-dashed border-line p-4">
         <div className="text-[12.5px] text-muted">Jobs you skipped or that scored low aren't shown again. Reset that list to give them another look on the next search.</div>
         <Button
           variant="ghost"
@@ -209,7 +209,7 @@ function SearchRail({ prefs, dirty, onSave }: { prefs: Preferences; dirty: boole
         <RailCard title="Needs a look">
           {issues.map(i => (
             <div key={i.text} className="flex items-start gap-2.5 py-1.5">
-              <span className="mt-[5px] size-2 shrink-0 rounded-full bg-warn" />
+              <span className="mt-[5px] size-2 shrink-0 bg-warn" />
               <span className="min-w-0 flex-1 text-[12.5px] leading-snug text-ink-2">{i.text}</span>
               <button onClick={i.fix} className="shrink-0 text-[12px] font-medium text-accent hover:underline">
                 {i.label}
@@ -248,7 +248,7 @@ function BuiltInBoards({ prefs, onChange, withLinkedIn }: PrefsProps & { withLin
   const linkedIn = useApp(s => Boolean(s.settings?.linkedin.connected));
   const toggle = (id: SourceId, v: boolean) => onChange({ sources: { ...prefs.sources, [id]: v } });
   const card = (id: SourceId, name: React.ReactNode, desc: React.ReactNode, note?: React.ReactNode, disabled?: boolean) => (
-    <label key={id} className={cn('flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors', prefs.sources[id] ? 'border-line bg-card shadow-card' : 'border-dashed border-line')}>
+    <label key={id} className={cn('flex cursor-pointer items-start gap-3 border p-3.5 transition-colors', prefs.sources[id] ? 'border-line bg-card shadow-card' : 'border-dashed border-line')}>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5 text-[13.5px] font-semibold text-ink">{name}</div>
         <div className="mt-0.5 text-[12px] leading-snug text-muted">{desc}</div>
@@ -342,14 +342,14 @@ function CustomBoards({ prefs, onChange }: PrefsProps) {
   };
 
   return (
-    <div className="rounded-2xl bg-card p-5 shadow-card">
+    <div className="bg-card p-5 shadow-card">
       <div className="text-[14px] font-semibold text-ink">Your job boards</div>
       <div className="mt-0.5 max-w-xl text-[12.5px] leading-relaxed text-muted">
         Add any site where jobs in your field get posted: a niche board, a country's job site, a community's jobs page. Paste its link and Talaria works out how to read it: its job feed, its listings, or a Hermes search within the site.
       </div>
 
       {boards.length > 0 ? (
-        <div className="mt-4 divide-y divide-line-2 overflow-hidden rounded-xl border border-line">
+        <div className="mt-4 divide-y divide-line-2 overflow-hidden border border-line">
           {boards.map(b => (
             <div key={b.id} className={cn('flex items-center gap-3 px-3.5 py-2.5', !b.enabled && 'opacity-60')}>
               <div className="min-w-0 flex-1">
@@ -361,7 +361,7 @@ function CustomBoards({ prefs, onChange }: PrefsProps) {
                     onChange={e => set(boards.map(x => (x.id === b.id ? { ...x, name: e.target.value } : x)))}
                     onBlur={() => !b.name.trim() && set(boards.map(x => (x.id === b.id ? { ...x, name: b.domain } : x)))}
                     size={Math.max(4, b.name.length)}
-                    className="-mx-1 min-w-0 truncate rounded bg-transparent px-1 outline-none hover:bg-ink/[0.05] focus:bg-ink/[0.05]"
+                    className="-mx-1 min-w-0 truncate bg-transparent px-1 outline-none hover:bg-ink/[0.05] focus:bg-ink/[0.05]"
                   />
                   <a href={b.url.replaceAll('{query}', encodeURIComponent(prefs.roles[0] || ''))} target="_blank" rel="noopener noreferrer" className="truncate text-[11.5px] font-normal text-accent hover:underline">
                     {b.domain}
@@ -374,14 +374,14 @@ function CustomBoards({ prefs, onChange }: PrefsProps) {
                 </div>
               </div>
               <Switch checked={b.enabled} onChange={enabled => set(boards.map(x => (x.id === b.id ? { ...x, enabled } : x)))} label={`Search ${b.name}`} />
-              <button aria-label={`Remove ${b.name}`} onClick={() => set(boards.filter(x => x.id !== b.id))} className="rounded p-1 text-faint hover:bg-ink/10 hover:text-ink">
+              <button aria-label={`Remove ${b.name}`} onClick={() => set(boards.filter(x => x.id !== b.id))} className="p-1 text-faint hover:bg-ink/10 hover:text-ink">
                 <X className="size-3.5" />
               </button>
             </div>
           ))}
         </div>
       ) : (
-        <p className="mt-4 rounded-xl border border-dashed border-line px-3.5 py-3 text-[12.5px] leading-relaxed text-muted">
+        <p className="mt-4 border border-dashed border-line px-3.5 py-3 text-[12.5px] leading-relaxed text-muted">
           No boards of your own yet. Paste the link to one below, for example its page of jobs in your field.
         </p>
       )}
@@ -399,7 +399,7 @@ function CustomBoards({ prefs, onChange }: PrefsProps) {
         </Button>
       </form>
       <p className="mt-2 text-[11.5px] leading-relaxed text-faint">
-        Best is the board's page already filtered to your field or location. To search it for each of your roles, put <code className="rounded bg-ink/[0.06] px-1 text-ink-2">{'{query}'}</code> where the search words go, e.g. <span className="text-ink-2">example.com/jobs?q={'{query}'}</span>.
+        Best is the board's page already filtered to your field or location. To search it for each of your roles, put <code className="bg-ink/[0.06] px-1 text-ink-2">{'{query}'}</code> where the search words go, e.g. <span className="text-ink-2">example.com/jobs?q={'{query}'}</span>.
       </p>
     </div>
   );
@@ -421,7 +421,7 @@ function PhdSettings({ prefs, onChange }: PrefsProps) {
     onChange({ ...next, phd: { ...next.phd!, fields: phd.fields.length ? phd.fields : PHD_FIELD_IDEAS.slice(0, 6) } });
   };
   return (
-    <div className="rounded-2xl bg-card p-5 shadow-card">
+    <div className="bg-card p-5 shadow-card">
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-1.5 text-[14px] font-semibold text-ink">
@@ -491,7 +491,7 @@ function CompaniesToWatch({ prefs, onChange }: PrefsProps) {
   };
 
   return (
-    <div className="rounded-2xl bg-card p-5 shadow-card">
+    <div className="bg-card p-5 shadow-card">
       <div className="flex items-start justify-between gap-4">
         <div className="max-w-xl text-[12.5px] leading-relaxed text-muted">
           Add any company by name or by the link to its jobs page. Talaria finds where it posts: Greenhouse, Lever, Ashby, Workday, Workable, SmartRecruiters, Recruitee, or its own careers website, which Hermes searches for your roles.
@@ -502,7 +502,7 @@ function CompaniesToWatch({ prefs, onChange }: PrefsProps) {
       </div>
 
       {suggestions.length > 0 && (
-        <div className="mt-4 overflow-hidden rounded-xl border border-gold/20 bg-gold-soft/30">
+        <div className="mt-4 overflow-hidden border border-gold/20 bg-gold-soft/30">
           <div className="flex items-center justify-between border-b border-gold/15 px-3.5 py-2 text-[12px] font-semibold text-gold">
             Hermes suggests
             <button onClick={() => setSuggestions([])} className="font-medium text-muted hover:text-ink">
@@ -529,17 +529,17 @@ function CompaniesToWatch({ prefs, onChange }: PrefsProps) {
       )}
 
       {!prefs.targetCompanies.length && !suggestions.length && (
-        <p className="mt-4 rounded-xl border border-dashed border-line px-3.5 py-3 text-[12.5px] leading-relaxed text-muted">
+        <p className="mt-4 border border-dashed border-line px-3.5 py-3 text-[12.5px] leading-relaxed text-muted">
           No companies yet. Add the ones you'd love to work for below, or press <strong className="font-semibold text-ink">Suggest companies</strong> and Hermes picks some that fit your profile.
         </p>
       )}
       <div className="mt-4 flex flex-wrap gap-1.5 empty:hidden">
         {prefs.targetCompanies.map(c => (
-          <span key={`${c.ats}:${c.slug}`} title={c.url || undefined} className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-ink/[0.05] pr-1 pl-2.5 text-[12.5px] font-medium text-ink-2 dark:bg-white/[0.07]">
+          <span key={`${c.ats}:${c.slug}`} title={c.url || undefined} className="inline-flex h-7 items-center gap-1.5 bg-ink/[0.05] pr-1 pl-2.5 text-[12.5px] font-medium text-ink-2 dark:bg-white/[0.07]">
             {c.ats === 'site' && <Globe className="size-3 text-faint" />}
             {c.name}
             <span className="text-[11px] font-normal text-faint">{PLATFORM[c.ats] || c.ats}</span>
-            <button aria-label={`Remove ${c.name}`} onClick={() => onChange({ targetCompanies: prefs.targetCompanies.filter(x => x !== c) })} className="rounded p-0.5 text-faint hover:bg-ink/10 hover:text-ink">
+            <button aria-label={`Remove ${c.name}`} onClick={() => onChange({ targetCompanies: prefs.targetCompanies.filter(x => x !== c) })} className="p-0.5 text-faint hover:bg-ink/10 hover:text-ink">
               <X className="size-3" />
             </button>
           </span>

@@ -95,7 +95,7 @@ export function SectionPage({
             <button
               key={s.id}
               onClick={() => jump(s.id)}
-              className={cn('h-7 shrink-0 rounded-lg px-2.5 text-[12.5px] font-medium transition-colors', active === s.id ? 'bg-card text-ink shadow-card' : 'text-muted hover:text-ink-2')}
+              className={cn('h-7 shrink-0 px-2.5 text-[12.5px] font-medium transition-colors', active === s.id ? 'bg-card text-ink shadow-card' : 'text-muted hover:text-ink-2')}
             >
               {s.label}
             </button>
@@ -113,7 +113,7 @@ export function SectionPage({
                   active === s.id ? 'font-medium text-ink' : 'text-muted hover:text-ink-2',
                 )}
               >
-                <span className={cn('absolute inset-y-1 left-0 w-[2px] rounded-full transition-colors', active === s.id ? 'bg-ink' : 'bg-line')} />
+                <span className={cn('absolute inset-y-1 left-0 w-[2px] transition-colors', active === s.id ? 'bg-ink' : 'bg-line')} />
                 {s.label}
               </button>
             ))}
@@ -148,7 +148,7 @@ export function PageSectionBlock({ id, title, desc, action, children }: { id: st
 /** A card in the right-hand live panel. */
 export function RailCard({ title, children, className }: { title?: React.ReactNode; children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn('rounded-2xl bg-card p-4 shadow-card', className)}>
+    <div className={cn('bg-card p-4 shadow-card', className)}>
       {title && <div className="mb-2 text-[12px] font-semibold tracking-[0.06em] text-muted uppercase">{title}</div>}
       {children}
     </div>
@@ -168,7 +168,7 @@ export function SaveBar({ dirty, saving, onSave, onReset }: { dirty: boolean; sa
     <AnimatePresence>
       {dirty && (
         <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} className="fixed bottom-6 left-1/2 z-30 -translate-x-1/2">
-          <div className="flex items-center gap-3 rounded-2xl bg-ink py-2 pr-2 pl-4 text-bg shadow-pop">
+          <div className="flex items-center gap-3 bg-ink py-2 pr-2 pl-4 text-bg shadow-pop">
             <span className="text-[13px]">Unsaved changes</span>
             <Button size="sm" variant="ghost" className="text-bg/70 hover:bg-white/10 hover:text-bg" onClick={onReset}>
               Discard
@@ -188,7 +188,7 @@ export function StatusLine({ tone, title, detail, onClick }: { tone: 'ok' | 'war
   const dot = { ok: 'bg-ok', warn: 'bg-warn', bad: 'bg-bad', off: 'bg-faint' }[tone];
   const body = (
     <>
-      <span className={cn('mt-[5px] size-2 shrink-0 rounded-full', dot)} />
+      <span className={cn('mt-[5px] size-2 shrink-0 ', dot)} />
       <span className="min-w-0">
         <span className="block text-[13px] font-medium text-ink">{title}</span>
         {detail && <span className="block text-[12px] leading-snug text-muted">{detail}</span>}
@@ -196,7 +196,7 @@ export function StatusLine({ tone, title, detail, onClick }: { tone: 'ok' | 'war
     </>
   );
   return onClick ? (
-    <button onClick={onClick} className="-mx-2 flex w-[calc(100%+16px)] items-start gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-ink/[0.04]">
+    <button onClick={onClick} className="-mx-2 flex w-[calc(100%+16px)] items-start gap-2.5 px-2 py-1.5 text-left transition-colors hover:bg-ink/[0.04]">
       {body}
     </button>
   ) : (

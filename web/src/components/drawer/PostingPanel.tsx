@@ -13,7 +13,7 @@ export function PostingPanel({ job }: { job: Job }) {
   ];
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-line-2 shadow-card sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-px overflow-hidden bg-line-2 shadow-card sm:grid-cols-3">
         {facts.map(f => (
           <div key={f.label} className="bg-card px-4 py-3">
             <div className="flex items-center gap-1.5 text-[11.5px] font-medium text-faint">
@@ -37,7 +37,7 @@ export function PostingPanel({ job }: { job: Job }) {
       {job.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {job.tags.map(t => (
-            <span key={t} className="rounded-md bg-ink/[0.05] px-2 py-0.5 text-[12px] text-muted dark:bg-white/[0.06]">
+            <span key={t} className="bg-ink/[0.05] px-2 py-0.5 text-[12px] text-muted dark:bg-white/[0.06]">
               {t}
             </span>
           ))}

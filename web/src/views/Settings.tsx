@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Bot, Check, Loader2, MessageSquareText, Mic, Monitor, Moon, RefreshCw, Square, Sun, TriangleAlert } from 'lucide-react';
+import { Bot, Check, Loader, MessageSquareText, Mic, Monitor, Moon, RefreshCw, Square, Sun, TriangleAlert } from 'lucide-react';
 import type { Settings } from '@shared/types';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
@@ -123,7 +123,7 @@ export function SettingsView() {
         <PageSectionBlock id="ai" title="AI model" desc="The model Hermes uses for every task, and what it's allowed to do.">
           <Card className="overflow-hidden">
             <div className="flex items-center gap-4 border-b border-line-2 p-5">
-              <div className={cn('grid size-11 place-items-center rounded-xl', hermes.ok ? 'bg-ok-soft text-ok' : 'bg-warn-soft text-warn')}>{hermes.ok ? <Bot className="size-5" /> : <TriangleAlert className="size-5" />}</div>
+              <div className={cn('grid size-11 place-items-center ', hermes.ok ? 'bg-ok-soft text-ok' : 'bg-warn-soft text-warn')}>{hermes.ok ? <Bot className="size-5" /> : <TriangleAlert className="size-5" />}</div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 text-[14.5px] font-semibold text-ink">
                   <StatusDot color={hermes.ok ? 'var(--ok)' : 'var(--warn)'} />
@@ -145,7 +145,7 @@ export function SettingsView() {
               <Field
                 label={
                   <span className="flex items-center gap-1.5">
-                    Model {trying && <Loader2 className="size-3 animate-spin text-gold" />}
+                    Model {trying && <Loader className="size-3 animate-spin text-gold" />}
                   </span>
                 }
                 hint={
@@ -235,13 +235,13 @@ export function SettingsView() {
             <VoiceSection />
             <Card className="p-5">
               <div className="flex items-start gap-3">
-                <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
+                <div className="grid size-9 shrink-0 place-items-center bg-accent-soft text-accent">
                   <MessageSquareText className="size-4" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-[14px] font-semibold text-ink">Talk to your board from Hermes</div>
                   <p className="mt-1 text-[13px] leading-relaxed text-muted">Connect Talaria to Hermes as an MCP server. Then chat with Hermes anywhere — the terminal, or Telegram/Discord if you set up its gateway — and ask things like “what needs my input?”, “find me new jobs”, or “summarize what I applied to this week”.</p>
-                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-[#121116] px-3.5 py-2.5 font-mono text-[12.5px] text-[#e9e7f2]">
+                  <div className="mt-3 flex items-center gap-2 bg-[#121116] px-3.5 py-2.5 font-mono text-[12.5px] text-[#e9e7f2]">
                     <span className="text-[#e7b04c]">$</span>
                     <span className="flex-1 truncate">hermes mcp add talaria --url {mcpUrl}</span>
                     <CopyButton text={`hermes mcp add talaria --url ${mcpUrl}`} className="border-white/15 text-[#e9e7f2] hover:bg-white/10" />
@@ -479,12 +479,12 @@ function VoiceSection() {
                   disabled={state === 'transcribing'}
                   aria-label={state === 'recording' ? 'Stop recording' : 'Start recording'}
                   className={cn(
-                    'relative grid size-14 shrink-0 place-items-center rounded-full transition-colors disabled:opacity-60',
+                    'relative grid size-14 shrink-0 place-items-center transition-colors disabled:opacity-60',
                     state === 'recording' ? 'bg-bad text-white' : 'bg-ink text-bg hover:bg-ink/85',
                   )}
                 >
-                  {state === 'recording' && <span className="absolute inset-0 rounded-full bg-bad/40" style={{ transform: `scale(${1 + level * 0.6})`, transition: 'transform 80ms' }} />}
-                  {state === 'transcribing' ? <Loader2 className="relative size-5 animate-spin" /> : state === 'recording' ? <Square className="relative size-5 fill-current" /> : <Mic className="relative size-6" />}
+                  {state === 'recording' && <span className="absolute inset-0 bg-bad/40" style={{ transform: `scale(${1 + level * 0.6})`, transition: 'transform 80ms' }} />}
+                  {state === 'transcribing' ? <Loader className="relative size-5 animate-spin" /> : state === 'recording' ? <Square className="relative size-5 fill-current" /> : <Mic className="relative size-6" />}
                 </button>
                 <div className="text-[13px] text-muted">
                   {state === 'recording' ? (
@@ -499,7 +499,7 @@ function VoiceSection() {
                 </div>
               </div>
               {trials.map((t, i) => (
-                <div key={trials.length - i} className="rounded-xl bg-panel p-4">
+                <div key={trials.length - i} className="bg-panel p-4">
                   <div className="mb-1.5 text-[11.5px] text-faint">
                     Try {trials.length - i} · {t.seconds}s of speech · transcribed in {(t.ms / 1000).toFixed(1)}s
                   </div>
@@ -513,7 +513,7 @@ function VoiceSection() {
                 {words && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     {words.map(w => (
-                      <span key={w} className="rounded-md bg-ink/[0.05] px-2 py-0.5 text-[11.5px] text-muted dark:bg-white/[0.06]">
+                      <span key={w} className="bg-ink/[0.05] px-2 py-0.5 text-[11.5px] text-muted dark:bg-white/[0.06]">
                         {w}
                       </span>
                     ))}
@@ -630,7 +630,7 @@ function Row({ title, desc, children, step }: { title: string; desc?: string; ch
   return (
     <div className="flex items-center justify-between gap-6 px-5 py-4">
       <div className="flex min-w-0 flex-1 gap-3">
-        {step != null && <span className="mt-px grid size-5 shrink-0 place-items-center rounded-full border border-line text-[10.5px] font-semibold text-muted tabular-nums">{step}</span>}
+        {step != null && <span className="mt-px grid size-5 shrink-0 place-items-center border border-line text-[10.5px] font-semibold text-muted tabular-nums">{step}</span>}
         <div className="min-w-0">
           <div className="text-[13.5px] font-medium text-ink">{title}</div>
           {desc && <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted">{desc}</div>}
@@ -646,7 +646,7 @@ const PROVIDER_LABEL: Record<string, string> = { copilot: 'GitHub Copilot', anth
 function ProviderSelect({ value, options, onChange, disabled }: { value: string; options: string[]; onChange: (v: string) => void; disabled?: boolean }) {
   const all = Array.from(new Set([value, 'copilot', 'openai-codex', ...options]));
   return (
-    <select disabled={disabled} value={value} onChange={e => onChange(e.target.value)} className="h-9 w-full rounded-lg border border-line bg-card px-2.5 text-[13.5px] text-ink outline-none focus:border-accent/60 disabled:opacity-60">
+    <select disabled={disabled} value={value} onChange={e => onChange(e.target.value)} className="h-9 w-full border border-line bg-card px-2.5 text-[13.5px] text-ink outline-none focus:border-accent/60 disabled:opacity-60">
       {all.map(p => (
         <option key={p} value={p}>
           {PROVIDER_LABEL[p] || p}
@@ -675,7 +675,7 @@ export function ModelSelect({ value, options, onChange, disabled }: { value: str
       disabled={disabled}
       value={value}
       onChange={e => (e.target.value === '__custom' ? setCustom(true) : onChange(e.target.value))}
-      className="h-9 w-full rounded-lg border border-line bg-card px-2.5 text-[13.5px] text-ink outline-none focus:border-accent/60 disabled:opacity-60"
+      className="h-9 w-full border border-line bg-card px-2.5 text-[13.5px] text-ink outline-none focus:border-accent/60 disabled:opacity-60"
     >
       {all.map(m => (
         <option key={m} value={m}>

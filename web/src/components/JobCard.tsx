@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { AlertTriangle, ArrowRight, Check, CircleHelp, Clock, Mail, MapPin, Pause, Play, Sparkles, Star, Unlink, X } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Check, Hourglass, Mail, MapPin, Pause, Play, Sparkles, SquarePen, Star, Unlink, X } from 'lucide-react';
 import type { ArchiveReason, Job } from '@shared/types';
 import { isStaleDraft, resumeHash } from '@shared/resume';
 import { jobTrack } from '@shared/track';
@@ -42,7 +42,7 @@ export const JobCard = React.memo(function JobCard({ job, overlay, dragging }: {
   return (
     <div
       className={cn(
-        'group relative rounded-[14px] bg-card p-3.5 shadow-card transition-[box-shadow,transform,opacity] duration-200',
+        'group relative bg-card p-3.5 shadow-card transition-[box-shadow,transform,opacity] duration-200',
         !overlay && !dragging && 'hover:shadow-lift',
         overlay && 'rotate-[1.5deg] cursor-grabbing shadow-pop',
         dragging && 'opacity-35',
@@ -55,7 +55,7 @@ export const JobCard = React.memo(function JobCard({ job, overlay, dragging }: {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[12px] text-muted">
             <span className="truncate font-medium text-ink-2">{job.company}</span>
-            {jobTrack(job) === 'phd' && <span className="shrink-0 rounded bg-accent-soft px-1.5 py-px text-[10.5px] font-semibold text-accent">PhD</span>}
+            {jobTrack(job) === 'phd' && <span className="shrink-0 bg-accent-soft px-1.5 py-px text-[10.5px] font-semibold text-accent">PhD</span>}
             {job.starred && <Star className="size-3 shrink-0 fill-gold text-gold" />}
           </div>
           <div className="mt-0.5 line-clamp-2 text-[14px] leading-[1.3] font-semibold tracking-[-0.005em] text-ink">{job.title}</div>
@@ -71,7 +71,7 @@ export const JobCard = React.memo(function JobCard({ job, overlay, dragging }: {
         {remote && job.location.toLowerCase().indexOf(remote.toLowerCase()) === -1 && <span className="font-medium text-ink-2">{remote}</span>}
         {job.salary && <span className="font-medium text-ink-2 tabular-nums">{job.salary}</span>}
         {job.deadline && <span className={cn('font-medium tabular-nums', Date.parse(job.deadline) - Date.now() < 7 * 86_400_000 ? 'text-warn' : 'text-ink-2')}>Apply by {fmtDate(job.deadline)}</span>}
-        {stale && <span title="Tailored from your previous resume" className="rounded-full bg-gold-soft px-1.5 py-px text-[11px] font-medium text-gold">Old resume</span>}
+        {stale && <span title="Tailored from your previous resume" className="bg-gold-soft px-1.5 py-px text-[11px] font-medium text-gold">Old resume</span>}
       </div>
 
       {job.status === 'discovered' && (job.analysis?.summary || job.quick?.reason) && !working && (
@@ -89,14 +89,14 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
   if (working && step) {
     if (pausedAt)
       return (
-        <div className="-mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 rounded-b-[14px] border-t border-line bg-ink/[0.03] px-3.5 py-2 text-[12px] font-medium text-muted dark:bg-white/[0.04]">
-          <Clock className="size-3.5" />
+        <div className="-mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 border-t border-line bg-ink/[0.03] px-3.5 py-2 text-[12px] font-medium text-muted dark:bg-white/[0.04]">
+          <Hourglass className="size-3.5" />
           <span className="flex-1 truncate">Paused by Copilot · resumes {pausedAt}</span>
           <PauseButton id={job.id} />
         </div>
       );
     return (
-      <div className="agent-sheen -mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 rounded-b-[14px] border-t border-gold/15 bg-gold-soft/60 px-3.5 py-2 text-[12px] font-medium text-gold">
+      <div className="agent-sheen -mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 border-t border-gold/15 bg-gold-soft/60 px-3.5 py-2 text-[12px] font-medium text-gold">
         <Sparkles className="size-3.5 animate-pulse-soft" />
         <span className="flex-1 truncate">{step}…</span>
         <PauseButton id={job.id} />
@@ -105,7 +105,7 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
   }
   if (job.liveCheck?.live === false && job.status !== 'archived') {
     return (
-      <div className="-mx-3.5 mt-3 -mb-3.5 rounded-b-[14px] border-t border-bad/20 bg-bad/10 px-3.5 py-2.5">
+      <div className="-mx-3.5 mt-3 -mb-3.5 border-t border-bad/20 bg-bad/10 px-3.5 py-2.5">
         <div className="flex items-center gap-1.5 text-[12px] font-semibold text-bad">
           <Unlink className="size-3.5" />
           <span className="flex-1">Posting closed</span>
@@ -115,7 +115,7 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
               e.stopPropagation();
               jobActions.archive(job.id, 'expired');
             }}
-            className="rounded-md px-1.5 py-0.5 font-medium hover:bg-bad/10"
+            className="px-1.5 py-0.5 font-medium hover:bg-bad/10"
           >
             Archive
           </button>
@@ -128,7 +128,7 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
   }
   if (job.paused && job.status !== 'archived') {
     return (
-      <div className="-mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 rounded-b-[14px] border-t border-line bg-ink/[0.03] px-3.5 py-2 text-[12px] font-medium text-muted dark:bg-white/[0.04]">
+      <div className="-mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 border-t border-line bg-ink/[0.03] px-3.5 py-2 text-[12px] font-medium text-muted dark:bg-white/[0.04]">
         <Pause className="size-3.5" />
         <span className="flex-1 truncate">Paused{job.packet ? ' · draft kept' : ''}</span>
         <button
@@ -137,7 +137,7 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
             e.stopPropagation();
             jobActions.resume(job.id);
           }}
-          className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-semibold text-ink-2 hover:bg-ink/5 hover:text-ink"
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 font-semibold text-ink-2 hover:bg-ink/5 hover:text-ink"
         >
           <Play className="size-3" /> Resume
         </button>
@@ -146,7 +146,7 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
   }
   if (tailorErr && (job.status === 'preparing' || job.status === 'needs_input')) {
     return (
-      <div className="-mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 rounded-b-[14px] border-t border-bad/15 bg-bad-soft/60 px-3.5 py-2 text-[12px] font-medium text-bad">
+      <div className="-mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 border-t border-bad/15 bg-bad-soft/60 px-3.5 py-2 text-[12px] font-medium text-bad">
         <AlertTriangle className="size-3.5" />
         <span className="flex-1 truncate">Hermes hit a snag</span>
         <button
@@ -155,7 +155,7 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
             e.stopPropagation();
             jobActions.prepare(job.id);
           }}
-          className="rounded-md px-1.5 py-0.5 underline-offset-2 hover:underline"
+          className="px-1.5 py-0.5 underline-offset-2 hover:underline"
         >
           Retry
         </button>
@@ -165,8 +165,8 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
   if (job.status === 'needs_input') {
     if (pending > 0)
       return (
-        <div className="-mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 rounded-b-[14px] border-t border-warn/15 bg-warn-soft/70 px-3.5 py-2 text-[12px] font-semibold text-warn">
-          <CircleHelp className="size-3.5" />
+        <div className="-mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 border-t border-warn/15 bg-warn-soft/70 px-3.5 py-2 text-[12px] font-semibold text-warn">
+          <SquarePen className="size-3.5" />
           <span className="flex-1">
             {pending} question{pending > 1 ? 's' : ''} {awaitingInterview(job) ? 'before drafting' : 'before submitting'}
           </span>
@@ -175,7 +175,7 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
       );
     const approved = Boolean(job.packet?.approvedAt);
     return (
-      <div className={cn('-mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 rounded-b-[14px] border-t px-3.5 py-2 text-[12px] font-semibold', approved ? 'border-ok/15 bg-ok-soft/70 text-ok' : 'border-accent/10 bg-accent-soft/70 text-accent')}>
+      <div className={cn('-mx-3.5 mt-3 -mb-3.5 flex items-center gap-2 border-t px-3.5 py-2 text-[12px] font-semibold', approved ? 'border-ok/15 bg-ok-soft/70 text-ok' : 'border-accent/10 bg-accent-soft/70 text-accent')}>
         {approved ? <Check className="size-3.5" /> : <Sparkles className="size-3.5" />}
         <span className="flex-1">{approved ? 'Approved · ready to submit' : 'Draft ready for your review'}</span>
         <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -186,7 +186,7 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
     const o = job.outcome;
     const bad = o.kind === 'rejection';
     return (
-      <div className={cn('-mx-3.5 mt-3 -mb-3.5 rounded-b-[14px] border-t px-3.5 py-2.5', bad ? 'border-bad/20 bg-bad/10' : 'border-ok/15 bg-ok-soft/70')}>
+      <div className={cn('-mx-3.5 mt-3 -mb-3.5 border-t px-3.5 py-2.5', bad ? 'border-bad/20 bg-bad/10' : 'border-ok/15 bg-ok-soft/70')}>
         <div className={cn('flex items-center gap-1.5 text-[12px] font-semibold', bad ? 'text-bad' : 'text-ok')}>
           {bad ? <X className="size-3.5" /> : <Mail className="size-3.5" />}
           <span className="flex-1">{bad ? "You've been rejected" : o.kind === 'offer' ? 'Offer by email' : o.kind === 'interview' ? 'Interview invitation' : 'Next step from them'}</span>
@@ -218,7 +218,7 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
               e.stopPropagation();
               jobActions.archive(job.id);
             }}
-            className="inline-flex h-6 items-center gap-1 rounded-md px-2 text-[11.5px] font-medium text-muted hover:bg-ink/5 hover:text-ink"
+            className="inline-flex h-6 items-center gap-1 px-2 text-[11.5px] font-medium text-muted hover:bg-ink/5 hover:text-ink"
           >
             <X className="size-3" /> Dismiss
           </button>
@@ -228,7 +228,7 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
               e.stopPropagation();
               jobActions.prepare(job.id);
             }}
-            className="inline-flex h-6 items-center gap-1 rounded-md bg-ink px-2 text-[11.5px] font-semibold text-bg hover:bg-ink/85"
+            className="inline-flex h-6 items-center gap-1 bg-ink px-2 text-[11.5px] font-semibold text-bg hover:bg-ink/85"
           >
             <Sparkles className="size-3 text-gold" /> Prepare
           </button>
@@ -249,7 +249,7 @@ function CardFooter({ job, working, step, pending, tailorErr }: { job: Job; work
               e.stopPropagation();
               moveJob(job.id, job.archivedFrom && job.archivedFrom !== 'preparing' ? job.archivedFrom : 'discovered');
             }}
-            className="shrink-0 rounded-md px-1.5 py-0.5 font-medium text-ink-2 hover:bg-ink/5 hover:text-ink"
+            className="shrink-0 px-1.5 py-0.5 font-medium text-ink-2 hover:bg-ink/5 hover:text-ink"
           >
             Restore
           </button>
@@ -272,7 +272,7 @@ function PauseButton({ id }: { id: string }) {
           e.stopPropagation();
           jobActions.pause(id);
         }}
-        className="-my-1 -mr-1.5 grid size-6 shrink-0 place-items-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 hover:bg-ink/10 focus-visible:opacity-100"
+        className="-my-1 -mr-1.5 grid size-6 shrink-0 place-items-center opacity-0 transition-opacity group-hover:opacity-100 hover:bg-ink/10 focus-visible:opacity-100"
       >
         <Pause className="size-3.5" />
       </button>

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { BookmarkCheck, Check, ChevronDown, FileText, Loader2, Plus, Trash2, UploadCloud, X } from 'lucide-react';
+import { BookmarkCheck, Check, ChevronDown, FileText, Loader, Plus, Trash2, UploadCloud, X } from 'lucide-react';
 import type { AnswerBankItem, ExperienceItem, Preferences, Profile } from '@shared/types';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
@@ -67,7 +67,7 @@ export function ProfileView() {
     >
       <PageSectionBlock id="resume" title="Resume">
         <Card className="flex flex-wrap items-center gap-4 p-4">
-          <div className="grid size-11 place-items-center rounded-xl bg-accent-soft text-accent">{uploading ? <Loader2 className="size-5 animate-spin" /> : <FileText className="size-5" />}</div>
+          <div className="grid size-11 place-items-center bg-accent-soft text-accent">{uploading ? <Loader className="size-5 animate-spin" /> : <FileText className="size-5" />}</div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 truncate text-[14px] font-semibold text-ink">
               {uploading ? 'Hermes is reading your new resume…' : stored.resumeFileName || 'Pasted resume'}
@@ -255,7 +255,7 @@ export function ProfileView() {
 
       <SaveBar dirty={dirty} saving={saving} onSave={save} onReset={() => setP(stored)} />
       <Dialog open={showText} onOpenChange={setShowText} title="Extracted resume text" description="This is exactly what Hermes reads." className="max-w-2xl">
-        <pre className="mt-4 max-h-[60vh] overflow-auto rounded-xl bg-panel p-4 font-mono text-[12px] leading-relaxed whitespace-pre-wrap text-ink-2">{stored.resumeText}</pre>
+        <pre className="mt-4 max-h-[60vh] overflow-auto bg-panel p-4 font-mono text-[12px] leading-relaxed whitespace-pre-wrap text-ink-2">{stored.resumeText}</pre>
       </Dialog>
     </SectionPage>
   );
@@ -277,13 +277,13 @@ function StrengthRail({ p, prefs, onShowText }: { p: Profile; prefs: Preferences
           <span className="font-display text-[30px] leading-none text-ink">{score}%</span>
           <span className="text-[12px] text-muted">{todo.length ? `${todo.length} thing${todo.length === 1 ? '' : 's'} to improve` : 'All set'}</span>
         </div>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-ink/[0.07]">
-          <div className={cn('h-full rounded-full transition-all', score >= 80 ? 'bg-ok' : score >= 50 ? 'bg-gold' : 'bg-warn')} style={{ width: `${score}%` }} />
+        <div className="mt-3 h-1.5 overflow-hidden bg-ink/[0.07]">
+          <div className={cn('h-full transition-all', score >= 80 ? 'bg-ok' : score >= 50 ? 'bg-gold' : 'bg-warn')} style={{ width: `${score}%` }} />
         </div>
         <div className="mt-3 space-y-0.5">
           {todo.map(c => (
-            <button key={c.id} onClick={() => jump(c.section)} className="-mx-2 flex w-[calc(100%+16px)] items-start gap-2.5 rounded-lg px-2 py-1.5 text-left text-[12.5px] leading-snug text-ink-2 transition-colors hover:bg-ink/[0.04]">
-              <span className="mt-[5px] size-2 shrink-0 rounded-full bg-warn" />
+            <button key={c.id} onClick={() => jump(c.section)} className="-mx-2 flex w-[calc(100%+16px)] items-start gap-2.5 px-2 py-1.5 text-left text-[12.5px] leading-snug text-ink-2 transition-colors hover:bg-ink/[0.04]">
+              <span className="mt-[5px] size-2 shrink-0 bg-warn" />
               {c.text}
             </button>
           ))}
@@ -474,7 +474,7 @@ function AnswerBank({ answers, all }: { answers: AnswerBankItem[]; all: AnswerBa
 
   if (!answers.length)
     return (
-      <div className="flex items-start gap-3 rounded-2xl border border-dashed border-line p-4 text-[12.5px] leading-relaxed text-muted">
+      <div className="flex items-start gap-3 border border-dashed border-line p-4 text-[12.5px] leading-relaxed text-muted">
         <BookmarkCheck className="mt-0.5 size-4 shrink-0 text-faint" />
         When Hermes asks you something else while preparing an application, your answer is saved here and reused, so you never get asked twice.
       </div>
@@ -488,7 +488,7 @@ function AnswerBank({ answers, all }: { answers: AnswerBankItem[]; all: AnswerBa
             <div className="text-[13.5px] font-semibold text-ink">{a.question}</div>
             <div className="flex shrink-0 items-center gap-1">
               <Badge>used {a.uses}×</Badge>
-              <button aria-label="Delete answer" onClick={() => save(all.filter(x => x.id !== a.id))} className="rounded-md p-1 text-faint hover:bg-bad-soft hover:text-bad">
+              <button aria-label="Delete answer" onClick={() => save(all.filter(x => x.id !== a.id))} className="p-1 text-faint hover:bg-bad-soft hover:text-bad">
                 <Trash2 className="size-3.5" />
               </button>
             </div>

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertCircle, Check, ChevronRight, FileSearch, Globe, Loader2, Mail, MessagesSquare, PenLine, Radar, ScrollText, Sparkles, Stethoscope, UserRound, X } from 'lucide-react';
+import { Check, ChevronRight, FileSearch, Globe, Loader, Mail, MessagesSquare, PenLine, ScanSearch, ScrollText, Sparkles, SquareExclamationPoint, SquareUser, Stethoscope, X } from 'lucide-react';
 import type { AgentRun, RunKind } from '@shared/types';
 import { useApp } from '@/lib/store';
 import { openJob } from '@/lib/router';
@@ -8,8 +8,8 @@ import { cn, fmtDuration, timeAgo } from '@/lib/utils';
 import { Card, EmptyState, IconButton, Segmented, Sheet } from '@/components/ui';
 
 const KIND: Record<RunKind, { icon: React.ElementType; label: string }> = {
-  profile: { icon: UserRound, label: 'Profile' },
-  scout: { icon: Radar, label: 'Scout' },
+  profile: { icon: SquareUser, label: 'Profile' },
+  scout: { icon: ScanSearch, label: 'Scout' },
   hermes_web: { icon: Globe, label: 'Web search' },
   score: { icon: Sparkles, label: 'Scoring' },
   analyze: { icon: FileSearch, label: 'Fit analysis' },
@@ -140,7 +140,7 @@ function RunRow({ run, onOpenJob }: { run: AgentRun; onOpenJob: () => void }) {
   return (
     <div className={cn(live && 'agent-sheen')}>
       <button onClick={() => setOpen(o => !o)} className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-panel/70">
-        <span className={cn('grid size-8 shrink-0 place-items-center rounded-lg', run.status === 'error' ? 'bg-bad-soft text-bad' : live ? 'bg-gold-soft text-gold' : 'bg-ink/[0.05] text-muted dark:bg-white/[0.06]')}>
+        <span className={cn('grid size-8 shrink-0 place-items-center ', run.status === 'error' ? 'bg-bad-soft text-bad' : live ? 'bg-gold-soft text-gold' : 'bg-ink/[0.05] text-muted dark:bg-white/[0.06]')}>
           <Icon className="size-4" />
         </span>
         <div className="min-w-0 flex-1">
@@ -149,9 +149,9 @@ function RunRow({ run, onOpenJob }: { run: AgentRun; onOpenJob: () => void }) {
         </div>
         <div className="flex shrink-0 items-center gap-3 text-[12px] text-faint tabular-nums">
           {run.usage?.totalTokens ? <span>{(run.usage.totalTokens / 1000).toFixed(1)}k tok</span> : null}
-          <span className="w-14 text-right">{live ? <Loader2 className="ml-auto size-3.5 animate-spin text-gold" /> : fmtDuration(run.durationMs)}</span>
+          <span className="w-14 text-right">{live ? <Loader className="ml-auto size-3.5 animate-spin text-gold" /> : fmtDuration(run.durationMs)}</span>
           <span className="w-16 text-right">{timeAgo(run.startedAt)}</span>
-          {run.status === 'done' ? <Check className="size-3.5 text-ok" /> : run.status === 'error' ? <AlertCircle className="size-3.5 text-bad" /> : <span className="size-3.5" />}
+          {run.status === 'done' ? <Check className="size-3.5 text-ok" /> : run.status === 'error' ? <SquareExclamationPoint className="size-3.5 text-bad" /> : <span className="size-3.5" />}
           <ChevronRight className={cn('size-3.5 transition-transform', open && 'rotate-90')} />
         </div>
       </button>
