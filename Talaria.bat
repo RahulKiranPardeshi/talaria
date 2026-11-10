@@ -23,9 +23,8 @@ if errorlevel 1 (
   exit /b 1
 )
 
-rem Talaria's own copy of Node.js (from setup) and Hermes come first.
+rem Talaria's own copy of Node.js (from setup) comes first.
 if exist "%~dp0runtime\node\node.exe" set "PATH=%~dp0runtime\node;%PATH%"
-if exist "%LOCALAPPDATA%\hermes\bin\hermes.exe" set "PATH=%LOCALAPPDATA%\hermes\bin;%PATH%"
 
 rem Install packages the first time, and again whenever an update changed them
 rem (package-lock.json newer than the last install). npm ci installs exactly what the
