@@ -95,7 +95,10 @@ export interface Profile {
   resumeText: string;
   resumeFileName?: string;
   latexSource?: string; // the user's own LaTeX resume, kept as the template for tailoring
-  story?: string; // who you are beyond the resume, in your words: the material for cover letters
+  story?: string; // who you are beyond the resume, woven by Hermes from your answers: the material for cover letters
+  storyAnswers?: Record<string, string>; // your answers to the story questions, keyed by question id
+  storyWovenAt?: string; // when Hermes last wove the answers into the story (unset: the story is the answers as written)
+  ideas?: ProfileIdeas; // suggestions from the resume, offered (never filled in) across the app
   updatedAt?: string;
 }
 
@@ -334,7 +337,7 @@ export interface Job {
   updatedAt: string;
 }
 
-export type RunKind = 'profile' | 'scout' | 'score' | 'analyze' | 'tailor' | 'summary' | 'submit' | 'test' | 'hermes_web' | 'chat' | 'mail';
+export type RunKind = 'profile' | 'story' | 'scout' | 'score' | 'analyze' | 'tailor' | 'summary' | 'submit' | 'test' | 'hermes_web' | 'chat' | 'mail';
 
 export interface AgentRun {
   id: string;
@@ -411,6 +414,22 @@ export interface HermesStatus {
   browserTools?: boolean;
   checking?: boolean;
   rateLimitedUntil?: string; // provider rate limit: queue paused until this time
+}
+
+/** Ideas Hermes draws from a resume, shown as suggestions and examples so they fit this person's field. */
+export interface ProfileIdeas {
+  roles: string[]; // more job titles worth a look, beyond the ones filled in
+  topics: string[]; // domains, products and technologies they might love
+  dealBreakers: string[]; // what people in this field often rule out
+  locations: string[]; // cities, countries or regions that hire this profile and suit them
+}
+
+/** What Hermes already knows about the person's AI accounts, so setup can fill itself in. */
+export interface HermesAccounts {
+  signedIn: string[]; // providers Hermes holds a sign-in for
+  models: Record<string, string[]>; // models each provider offers, best first
+  defaults: Record<string, string>; // the model Talaria picks for each provider
+  configured?: { provider?: string; model?: string }; // what `hermes model` last set up
 }
 
 export interface ScoutState {

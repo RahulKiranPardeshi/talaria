@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Archive, ArrowRight, CalendarCheck, Check, CircleHelp, ExternalLink, FileText, Link2, MessagesSquare, PanelRight, Pause, Play, RefreshCw, Send, Sparkles, Star, Trash2, Trophy, Undo2, Unlink, XCircle } from 'lucide-react';
+import { Archive, ArrowRight, CalendarCheck, Check, ExternalLink, FileText, Link2, MessagesSquare, PanelRight, Pause, Play, RefreshCw, Send, Sparkles, SquarePen, SquareX, Star, Trash2, Trophy, Undo2, Unlink } from 'lucide-react';
 import { toast } from 'sonner';
 import { BOARD_COLUMNS, type Job, type JobStatus } from '@shared/types';
 import { isStaleDraft, resumeHash } from '@shared/resume';
@@ -69,7 +69,7 @@ function CardMenuItems({ job }: { job: Job }) {
       )}
       <ContextMenuSub label="Move to" icon={<ArrowRight />}>
         {BOARD_COLUMNS.filter(s => s !== job.status).map(s => (
-          <ContextMenuItem key={s} icon={<span className="block size-2 rounded-full" style={{ background: STATUS_META[s].color }} />} onSelect={() => moveTo(job, s)}>
+          <ContextMenuItem key={s} icon={<span className="block size-2 " style={{ background: STATUS_META[s].color }} />} onSelect={() => moveTo(job, s)}>
             {STATUS_META[s].label}
           </ContextMenuItem>
         ))}
@@ -83,7 +83,7 @@ function CardMenuItems({ job }: { job: Job }) {
       )}
       {afterApplying ? (
         <>
-          <ContextMenuItem icon={<XCircle />} onSelect={() => closeOut(job, 'rejected')}>
+          <ContextMenuItem icon={<SquareX />} onSelect={() => closeOut(job, 'rejected')}>
             Not selected
           </ContextMenuItem>
           <ContextMenuItem icon={<Undo2 />} onSelect={() => closeOut(job, 'withdrawn')}>
@@ -143,7 +143,7 @@ function ColumnCommands({ job, working, pending, stale }: { job: Job; working: b
       return (
         <>
           {pending > 0 ? (
-            <ContextMenuItem icon={<CircleHelp className="text-warn" />} onSelect={() => openJob(job.id, 'workspace')}>
+            <ContextMenuItem icon={<SquarePen className="text-warn" />} onSelect={() => openJob(job.id, 'workspace')}>
               Answer {pending} question{pending === 1 ? '' : 's'}
             </ContextMenuItem>
           ) : (

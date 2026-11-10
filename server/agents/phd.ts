@@ -67,7 +67,7 @@ export const phdSearchRunning = () => Boolean(running);
 async function run(opts: { quiet?: boolean }): Promise<{ added: number; found: number }> {
   const profile = getProfile();
   if (!profile) throw new Error('Add your resume first.');
-  if (!getSettings().hermes.webSearch) throw new Error('Turn on "Let Hermes search the web" in Settings to find PhD positions.');
+  if (!getSettings().hermes.webSearch) throw new Error('Turn on "Let Hermes browse the web" in Settings › AI model to find PhD positions.');
   const prefs = getPreferences();
   const fields = prefs.phd?.fields?.length ? prefs.phd.fields : DEFAULT_PHD_FIELDS;
   const where = prefs.phd?.countries?.length ? prefs.phd.countries.join(', ') : 'anywhere in Europe';

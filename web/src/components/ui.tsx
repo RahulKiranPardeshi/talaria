@@ -4,7 +4,7 @@ import * as RTooltip from '@radix-ui/react-tooltip';
 import * as RSwitch from '@radix-ui/react-switch';
 import * as RMenu from '@radix-ui/react-dropdown-menu';
 import * as RContext from '@radix-ui/react-context-menu';
-import { Check, ChevronRight, Copy, Loader2, X } from 'lucide-react';
+import { Check, ChevronRight, Copy, Loader, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn, copyText } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -23,10 +23,10 @@ const variants: Record<Variant, string> = {
   gold: 'bg-gold text-white hover:bg-gold/90 dark:text-[#1a1408] shadow-[0_1px_0_rgb(255_255_255/0.2)_inset]',
 };
 const sizes: Record<Size, string> = {
-  xs: 'h-7 px-2.5 text-[12px] gap-1.5 rounded-md',
-  sm: 'h-8 px-3 text-[13px] gap-1.5 rounded-lg',
-  md: 'h-9 px-3.5 text-[13.5px] gap-2 rounded-lg',
-  lg: 'h-11 px-5 text-[14.5px] gap-2 rounded-xl',
+  xs: 'h-7 px-2.5 text-[12px] gap-1.5 ',
+  sm: 'h-8 px-3 text-[13px] gap-1.5 ',
+  md: 'h-9 px-3.5 text-[13.5px] gap-2 ',
+  lg: 'h-11 px-5 text-[14.5px] gap-2 ',
 };
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -52,7 +52,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
       )}
       {...rest}
     >
-      {loading ? <Loader2 className="size-[1.1em] animate-spin" /> : icon}
+      {loading ? <Loader className="size-[1.1em] animate-spin" /> : icon}
       {children}
     </button>
   );
@@ -68,7 +68,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAt
         ref={ref}
         aria-label={label}
         className={cn(
-          'inline-flex items-center justify-center rounded-lg text-muted transition-colors hover:bg-ink/[0.06] hover:text-ink dark:hover:bg-white/[0.07]',
+          'inline-flex items-center justify-center text-muted transition-colors hover:bg-ink/[0.06] hover:text-ink dark:hover:bg-white/[0.07]',
           size === 'sm' ? 'size-7' : 'size-8',
           className,
         )}
@@ -99,7 +99,7 @@ export function Tooltip({ content, children, side = 'top' }: { content: React.Re
         <RTooltip.Content
           side={side}
           sideOffset={6}
-          className="z-[100] max-w-xs rounded-md bg-ink px-2 py-1 text-[12px] leading-snug font-medium text-bg shadow-lg data-[state=delayed-open]:animate-in"
+          className="z-[100] max-w-xs bg-ink px-2 py-1 text-[12px] leading-snug font-medium text-bg shadow-lg data-[state=delayed-open]:animate-in"
         >
           {content}
         </RTooltip.Content>
@@ -111,7 +111,7 @@ export function Tooltip({ content, children, side = 'top' }: { content: React.Re
 // ---------------- Inputs ----------------
 
 export const inputCls =
-  'w-full rounded-lg border border-line bg-card px-3 text-[13.5px] text-ink placeholder:text-faint shadow-[0_1px_1px_rgb(0_0_0/0.02)] transition-[border,box-shadow] outline-none focus:border-accent/60 focus:ring-[3px] focus:ring-accent/15';
+  'w-full border border-line bg-card px-3 text-[13.5px] text-ink placeholder:text-faint shadow-[0_1px_1px_rgb(0_0_0/0.02)] transition-[border,box-shadow] outline-none focus:border-accent/60 focus:ring-[3px] focus:ring-accent/15';
 
 export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
   return <input ref={ref} className={cn(inputCls, 'h-9', className)} {...rest} />;
@@ -147,9 +147,9 @@ export function Switch({ checked, onChange, label, disabled }: { checked: boolea
       onCheckedChange={onChange}
       disabled={disabled}
       aria-label={label}
-      className="relative inline-flex h-[22px] w-[38px] shrink-0 cursor-pointer items-center rounded-full bg-line transition-colors data-[state=checked]:bg-accent disabled:opacity-50"
+      className="relative inline-flex h-[22px] w-[38px] shrink-0 cursor-pointer items-center bg-line transition-colors data-[state=checked]:bg-accent disabled:opacity-50"
     >
-      <RSwitch.Thumb className="block size-[18px] translate-x-[2px] rounded-full bg-white shadow-[0_1px_3px_rgb(0_0_0/0.25)] transition-transform duration-200 data-[state=checked]:translate-x-[18px]" />
+      <RSwitch.Thumb className="block size-[18px] translate-x-[2px] bg-white shadow-[0_1px_3px_rgb(0_0_0/0.25)] transition-transform duration-200 data-[state=checked]:translate-x-[18px]" />
     </RSwitch.Root>
   );
 }
@@ -157,20 +157,20 @@ export function Switch({ checked, onChange, label, disabled }: { checked: boolea
 export function Segmented<T extends string>({ value, onChange, options, size = 'md', className }: { value: T; onChange: (v: T) => void; options: { value: T; label: React.ReactNode }[]; size?: 'sm' | 'md'; className?: string }) {
   const id = React.useId();
   return (
-    <div className={cn('inline-flex rounded-lg bg-ink/[0.05] p-0.5 dark:bg-white/[0.06]', className)}>
+    <div className={cn('inline-flex bg-ink/[0.05] p-0.5 dark:bg-white/[0.06]', className)}>
       {options.map(o => (
         <button
           key={o.value}
           type="button"
           onClick={() => onChange(o.value)}
           className={cn(
-            'relative rounded-md font-medium whitespace-nowrap transition-colors',
+            'relative font-medium whitespace-nowrap transition-colors',
             size === 'sm' ? 'h-7 px-2.5 text-[12px]' : 'h-8 px-3 text-[13px]',
             value === o.value ? 'text-bg' : 'text-muted hover:text-ink-2',
           )}
         >
           {/* Filled like the selected pills elsewhere, so the choice reads at a glance in both themes. */}
-          {value === o.value && <motion.span layoutId={`seg-${id}`} className="absolute inset-0 rounded-md bg-ink shadow-card" transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }} />}
+          {value === o.value && <motion.span layoutId={`seg-${id}`} className="absolute inset-0 bg-ink shadow-card" transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }} />}
           <span className="relative">{o.label}</span>
         </button>
       ))}
@@ -178,47 +178,139 @@ export function Segmented<T extends string>({ value, onChange, options, size = '
   );
 }
 
-export function ChipInput({ value, onChange, placeholder, suggestions = [] }: { value: string[]; onChange: (v: string[]) => void; placeholder?: string; suggestions?: string[] }) {
+/** A choice in a type-ahead list: what gets saved, and an optional grey note beside it. */
+export type Option = { value: string; hint?: string; added?: boolean };
+
+/**
+ * Keyboard and mouse handling for a type-ahead list under an input. Arrow keys move, Enter picks,
+ * Escape closes; `onKeyDown` returns true when it used the key.
+ */
+function useTypeahead(options: Option[], pick: (value: string) => void) {
+  const [active, setActive] = React.useState(0);
+  const [open, setOpen] = React.useState(true);
+  const shown = open ? options : [];
+  // Start on the first choice you haven't added yet.
+  React.useEffect(() => setActive(Math.max(0, options.findIndex(o => !o.added))), [options.map(o => o.value).join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const choose = (o: Option) => !o.added && pick(o.value);
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (!shown.length) return false;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') setActive(a => (a + (e.key === 'ArrowDown' ? 1 : shown.length - 1)) % shown.length);
+    else if (e.key === 'Enter' || e.key === 'Tab') {
+      const o = shown[Math.min(active, shown.length - 1)];
+      // Everything that matches is already added: Enter just closes the list.
+      if (o.added) setOpen(false);
+      else choose(o);
+    } else if (e.key === 'Escape') setOpen(false);
+    else return false;
+    e.preventDefault();
+    return true;
+  };
+  const list = shown.length ? (
+    <div role="listbox" className="absolute top-full right-0 left-0 z-30 mt-1 overflow-hidden border border-line bg-card py-1 shadow-pop">
+      {shown.map((o, i) => (
+        <button
+          key={o.value}
+          type="button"
+          role="option"
+          aria-selected={i === active}
+          aria-disabled={o.added}
+          // Keep focus in the input, so picking doesn't count as leaving the field.
+          onMouseDown={e => e.preventDefault()}
+          onMouseEnter={() => setActive(i)}
+          onClick={() => choose(o)}
+          className={cn('flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-[13px]', i === active ? 'bg-ink/[0.06] dark:bg-white/[0.08]' : '', o.added && 'cursor-default')}
+        >
+          <span className={cn('flex max-w-[65%] shrink-0 items-center gap-1.5 truncate', o.added ? 'text-muted' : 'text-ink')}>
+            {o.added && <Check className="size-3.5 shrink-0 text-ok" strokeWidth={3} />}
+            <span className="truncate">{o.value}</span>
+          </span>
+          {o.added ? <span className="shrink-0 text-[11.5px] font-medium text-ok">Added</span> : o.hint && <span className="min-w-0 truncate text-[11.5px] text-faint">{o.hint}</span>}
+        </button>
+      ))}
+    </div>
+  ) : null;
+  return { list, onKeyDown, reopen: () => setOpen(true), close: () => setOpen(false) };
+}
+
+/** A single-value input that suggests as you type, but still accepts anything typed. */
+export function SuggestInput({ value, onChange, search, placeholder, className }: { value: string; onChange: (v: string) => void; search: (q: string) => Option[]; placeholder?: string; className?: string }) {
+  const [typing, setTyping] = React.useState(false);
+  const options = typing && value.trim() ? search(value).filter(o => o.value.toLowerCase() !== value.trim().toLowerCase()) : [];
+  const ta = useTypeahead(options, v => (onChange(v), setTyping(false)));
+  return (
+    <div className="relative">
+      <Input
+        value={value}
+        placeholder={placeholder}
+        className={className}
+        onChange={e => (onChange(e.target.value), setTyping(true), ta.reopen())}
+        onKeyDown={e => ta.onKeyDown(e)}
+        onBlur={() => setTyping(false)}
+      />
+      {ta.list}
+    </div>
+  );
+}
+
+export function ChipInput({ value, onChange, placeholder, suggestions = [], search }: { value: string[]; onChange: (v: string[]) => void; placeholder?: string; suggestions?: string[]; search?: (q: string) => Option[] }) {
   const [draft, setDraft] = React.useState('');
+  const field = React.useRef<HTMLInputElement>(null);
+  const has = (s: string) => value.some(v => v.toLowerCase() === s.toLowerCase());
   const add = (raw: string) => {
     const items = raw
       .split(/[,\n]/)
       .map(s => s.trim())
       .filter(Boolean)
-      .filter(s => !value.some(v => v.toLowerCase() === s.toLowerCase()));
+      .filter(s => !has(s));
     if (items.length) onChange([...value, ...items]);
     setDraft('');
   };
-  const sugg = suggestions.filter(s => !value.some(v => v.toLowerCase() === s.toLowerCase())).slice(0, 8);
+  // With a search, commas belong to names ("Berlin, Germany"), so only a picked option or Enter adds.
+  // What you've already added stays in the list, ticked, so you can see it's there.
+  const options = search && draft.trim() ? search(draft).map(o => ({ ...o, added: has(o.value) })) : [];
+  const ta = useTypeahead(options, v => (onChange([...value, v]), setDraft('')));
+  const sugg = suggestions.filter(s => !has(s)).slice(0, 8);
   return (
     <div>
-      <div className={cn(inputCls, 'flex min-h-9 flex-wrap items-center gap-1.5 px-1.5 py-1.5 focus-within:border-accent/60 focus-within:ring-[3px] focus-within:ring-accent/15')}>
+      {/* A click on the box's empty space goes to the typing field. */}
+      <div
+        onMouseDown={e => e.target === e.currentTarget && (e.preventDefault(), field.current?.focus())}
+        className={cn(inputCls, 'relative flex min-h-9 cursor-text flex-wrap items-center gap-1.5 px-1.5 py-1.5 focus-within:border-accent/60 focus-within:ring-[3px] focus-within:ring-accent/15')}
+      >
         {value.map(v => (
-          <span key={v} className="inline-flex h-6 items-center gap-1 rounded-md bg-ink/[0.06] pr-1 pl-2 text-[12.5px] font-medium text-ink-2 dark:bg-white/[0.08]">
+          <span key={v} className="inline-flex h-6 items-center gap-1 bg-ink/[0.06] pr-1 pl-2 text-[12.5px] font-medium text-ink-2 dark:bg-white/[0.08]">
             {v}
-            <button type="button" aria-label={`Remove ${v}`} onClick={() => onChange(value.filter(x => x !== v))} className="rounded p-0.5 text-faint hover:bg-ink/10 hover:text-ink">
+            <button type="button" aria-label={`Remove ${v}`} onClick={() => onChange(value.filter(x => x !== v))} className="p-0.5 text-faint hover:bg-ink/10 hover:text-ink">
               <X className="size-3" />
             </button>
           </span>
         ))}
         <input
+          ref={field}
           value={draft}
-          onChange={e => setDraft(e.target.value)}
+          onChange={e => (setDraft(e.target.value), ta.reopen())}
           onKeyDown={e => {
-            if ((e.key === 'Enter' || e.key === ',') && draft.trim()) {
+            if (ta.onKeyDown(e)) return;
+            if ((e.key === 'Enter' || (e.key === ',' && !search)) && draft.trim()) {
               e.preventDefault();
-              add(draft);
+              search ? (onChange([...value, draft.trim()].filter((v, i, a) => a.findIndex(x => x.toLowerCase() === v.toLowerCase()) === i)), setDraft('')) : add(draft);
             } else if (e.key === 'Backspace' && !draft && value.length) onChange(value.slice(0, -1));
           }}
-          onBlur={() => draft.trim() && add(draft)}
-          placeholder={value.length ? '' : placeholder}
-          className="h-6 min-w-[120px] flex-1 bg-transparent px-1.5 text-[13.5px] outline-none placeholder:text-faint"
+          // Leaving a search field only closes its list: half a word shouldn't become a chip.
+          onBlur={() => (search ? ta.close() : draft.trim() && add(draft))}
+          placeholder={value.length ? 'Type here to add more' : placeholder}
+          // Once there are chips, the typing spot gets its own outline, so it's clear you can add more.
+          className={cn(
+            'h-6 min-w-[150px] flex-1 bg-transparent px-1.5 text-[13.5px] outline-none placeholder:text-faint',
+            value.length > 0 && 'border border-dashed border-line px-2 focus:border-solid focus:border-accent/60 focus:bg-card',
+          )}
         />
+        {ta.list}
       </div>
       {sugg.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {sugg.map(s => (
-            <button key={s} type="button" onClick={() => onChange([...value, s])} className="h-6 rounded-md border border-dashed border-line px-2 text-[12px] text-muted transition-colors hover:border-accent/50 hover:text-accent">
+            <button key={s} type="button" onClick={() => onChange([...value, s])} className="h-6 border border-dashed border-line px-2 text-[12px] text-muted transition-colors hover:border-accent/50 hover:text-accent">
               + {s}
             </button>
           ))}
@@ -241,20 +333,20 @@ export function Badge({ children, tone = 'neutral', className, dot }: { children
     info: 'bg-info-soft text-info',
   };
   return (
-    <span className={cn('inline-flex h-[22px] items-center gap-1 rounded-md px-1.5 text-[11.5px] font-medium whitespace-nowrap', tones[tone], className)}>
-      {dot && <span className="size-1.5 rounded-full bg-current" />}
+    <span className={cn('inline-flex h-[22px] items-center gap-1 px-1.5 text-[11.5px] font-medium whitespace-nowrap', tones[tone], className)}>
+      {dot && <span className="size-1.5 bg-current" />}
       {children}
     </span>
   );
 }
 
 export function Kbd({ children }: { children: React.ReactNode }) {
-  return <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded border border-line bg-card px-1 font-sans text-[11px] font-medium text-muted shadow-[0_1px_0_var(--line)]">{children}</kbd>;
+  return <kbd className="inline-flex h-5 min-w-5 items-center justify-center border border-line bg-card px-1 font-sans text-[11px] font-medium text-muted shadow-[0_1px_0_var(--line)]">{children}</kbd>;
 }
 
 export function Card({ className, children, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn('rounded-2xl bg-card shadow-card', className)} {...rest}>
+    <div className={cn('bg-card shadow-card', className)} {...rest}>
       {children}
     </div>
   );
@@ -270,7 +362,7 @@ export function SectionTitle({ children, action, className }: { children: React.
 }
 
 export function Spinner({ className }: { className?: string }) {
-  return <Loader2 className={cn('size-4 animate-spin text-muted', className)} />;
+  return <Loader className={cn('size-4 animate-spin text-muted', className)} />;
 }
 
 export function CopyButton({ text, label = 'Copy', className, size = 'xs' }: { text: string; label?: string; className?: string; size?: Size }) {
@@ -297,7 +389,7 @@ export function CopyButton({ text, label = 'Copy', className, size = 'xs' }: { t
 export function EmptyState({ icon, title, children, action, className }: { icon?: React.ReactNode; title: React.ReactNode; children?: React.ReactNode; action?: React.ReactNode; className?: string }) {
   return (
     <div className={cn('flex flex-col items-center justify-center px-6 py-10 text-center', className)}>
-      {icon && <div className="mb-4 grid size-12 place-items-center rounded-2xl bg-card text-muted shadow-card">{icon}</div>}
+      {icon && <div className="mb-4 grid size-12 place-items-center bg-card text-muted shadow-card">{icon}</div>}
       <div className="font-display text-[18px] leading-tight text-ink">{title}</div>
       {children && <div className="mt-2 max-w-sm text-[13.5px] leading-relaxed text-muted">{children}</div>}
       {action && <div className="mt-5">{action}</div>}
@@ -319,7 +411,7 @@ export function Dialog({ open, onOpenChange, children, className, title, descrip
             <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4">
               <RDialog.Content asChild aria-describedby={undefined}>
                 <motion.div
-                  className={cn('relative w-full max-w-lg rounded-2xl bg-raised p-6 shadow-pop outline-none', className)}
+                  className={cn('relative w-full max-w-lg bg-raised p-6 shadow-pop outline-none', className)}
                   initial={{ opacity: 0, y: 12, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.98 }}
@@ -328,7 +420,7 @@ export function Dialog({ open, onOpenChange, children, className, title, descrip
                   {title ? <RDialog.Title className="pr-8 font-display text-[20px] leading-tight text-ink">{title}</RDialog.Title> : <RDialog.Title className="sr-only">Dialog</RDialog.Title>}
                   {description && <RDialog.Description className="mt-1.5 text-[13.5px] leading-relaxed text-muted">{description}</RDialog.Description>}
                   <RDialog.Close asChild>
-                    <button aria-label="Close" className="absolute top-4 right-4 rounded-lg p-1.5 text-faint transition-colors hover:bg-ink/5 hover:text-ink">
+                    <button aria-label="Close" className="absolute top-4 right-4 p-1.5 text-faint transition-colors hover:bg-ink/5 hover:text-ink">
                       <X className="size-4" />
                     </button>
                   </RDialog.Close>
@@ -354,7 +446,7 @@ export function Sheet({ open, onOpenChange, children, className, label }: { open
             </RDialog.Overlay>
             <RDialog.Content asChild aria-describedby={undefined}>
               <motion.div
-                className={cn('fixed top-2 right-2 bottom-2 z-40 flex w-[min(780px,calc(100vw-16px))] flex-col overflow-hidden rounded-2xl bg-bg shadow-pop outline-none', className)}
+                className={cn('fixed top-2 right-2 bottom-2 z-40 flex w-[min(780px,calc(100vw-16px))] flex-col overflow-hidden bg-bg shadow-pop outline-none', className)}
                 initial={{ x: 40, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: 40, opacity: 0 }}
@@ -379,7 +471,7 @@ export const MenuTrigger = RMenu.Trigger;
 export function MenuContent({ children, align = 'end' }: { children: React.ReactNode; align?: 'start' | 'end' | 'center' }) {
   return (
     <RMenu.Portal>
-      <RMenu.Content align={align} sideOffset={6} className="z-[60] min-w-[200px] rounded-xl bg-raised p-1 shadow-pop">
+      <RMenu.Content align={align} sideOffset={6} className="z-[60] min-w-[200px] bg-raised p-1 shadow-pop">
         {children}
       </RMenu.Content>
     </RMenu.Portal>
@@ -392,7 +484,7 @@ export function MenuItem({ children, onSelect, icon, danger, disabled }: { child
       disabled={disabled}
       onSelect={onSelect}
       className={cn(
-        'flex h-8 cursor-default items-center gap-2.5 rounded-lg px-2.5 text-[13px] outline-none select-none data-[disabled]:opacity-40 data-[highlighted]:bg-ink/[0.05] dark:data-[highlighted]:bg-white/[0.07]',
+        'flex h-8 cursor-default items-center gap-2.5 px-2.5 text-[13px] outline-none select-none data-[disabled]:opacity-40 data-[highlighted]:bg-ink/[0.05] dark:data-[highlighted]:bg-white/[0.07]',
         danger ? 'text-bad' : 'text-ink-2 data-[highlighted]:text-ink',
       )}
     >
@@ -406,9 +498,9 @@ export const MenuSeparator = () => <RMenu.Separator className="mx-1 my-1 h-px bg
 
 // ---------------- Context menu (right click) ----------------
 
-const menuPanel = 'z-[60] min-w-[220px] max-w-[280px] rounded-xl bg-raised p-1 shadow-pop';
+const menuPanel = 'z-[60] min-w-[220px] max-w-[280px] bg-raised p-1 shadow-pop';
 const menuRow =
-  'flex h-8 cursor-default items-center gap-2.5 rounded-lg px-2.5 text-[13px] outline-none select-none data-[disabled]:opacity-40 data-[highlighted]:bg-ink/[0.05] data-[state=open]:bg-ink/[0.05] dark:data-[highlighted]:bg-white/[0.07] dark:data-[state=open]:bg-white/[0.07]';
+  'flex h-8 cursor-default items-center gap-2.5 px-2.5 text-[13px] outline-none select-none data-[disabled]:opacity-40 data-[highlighted]:bg-ink/[0.05] data-[state=open]:bg-ink/[0.05] dark:data-[highlighted]:bg-white/[0.07] dark:data-[state=open]:bg-white/[0.07]';
 
 export const ContextMenu = RContext.Root;
 export const ContextMenuTrigger = RContext.Trigger;

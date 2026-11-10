@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as Tabs from '@radix-ui/react-tabs';
 import { motion } from 'motion/react';
-import { Archive, ArrowRight, Check, ExternalLink, Link2, Mail, MapPin, MessagesSquare, MoreHorizontal, RefreshCw, RotateCcw, Send, Sparkles, Star, Trash2, X, XCircle } from 'lucide-react';
+import { Archive, ArrowRight, Check, ExternalLink, Link2, Mail, MapPin, MessagesSquare, MoreHorizontal, RefreshCw, RotateCcw, Send, Sparkles, SquareX, Star, Trash2, X } from 'lucide-react';
 import type { Job, JobStatus } from '@shared/types';
 import { jobActions, moveJob, useApp } from '@/lib/store';
 import { closeJob, navigate } from '@/lib/router';
@@ -107,7 +107,7 @@ function DrawerBody({ job, tab: tabParam }: { job: Job; tab: Tab | null }) {
           )}
           <Menu>
             <MenuTrigger asChild>
-              <button aria-label="More actions" className="inline-flex size-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-ink/[0.06] hover:text-ink">
+              <button aria-label="More actions" className="inline-flex size-8 items-center justify-center text-muted transition-colors hover:bg-ink/[0.06] hover:text-ink">
                 <MoreHorizontal className="size-4" />
               </button>
             </MenuTrigger>
@@ -207,10 +207,10 @@ function DrawerBody({ job, tab: tabParam }: { job: Job; tab: Tab | null }) {
             ).map(([v, label]) => (
               <Tabs.Trigger key={v} value={v} className="relative flex h-11 items-center gap-1.5 px-2.5 text-[13px] font-medium text-muted transition-colors outline-none hover:text-ink data-[state=active]:text-ink">
                 {label}
-                {v === 'application' && pending > 0 && <span className="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-warn px-1 text-[10.5px] font-bold text-white">{pending}</span>}
+                {v === 'application' && pending > 0 && <span className="grid h-[18px] min-w-[18px] place-items-center bg-warn px-1 text-[10.5px] font-bold text-white">{pending}</span>}
                 {v === 'application' && job.work.tailor?.state === 'running' && <Sparkles className="size-3.5 animate-pulse-soft text-gold" />}
                 {v === 'fit' && job.work.analyze?.state === 'running' && <Sparkles className="size-3.5 animate-pulse-soft text-gold" />}
-                {tab === v && <motion.span layoutId="drawer-tab" className="absolute right-1.5 -bottom-px left-1.5 h-[2px] rounded-full bg-ink" transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }} />}
+                {tab === v && <motion.span layoutId="drawer-tab" className="absolute right-1.5 -bottom-px left-1.5 h-[2px] bg-ink" transition={{ type: 'spring', bounce: 0.15, duration: 0.35 }} />}
               </Tabs.Trigger>
             ))}
           </Tabs.List>
@@ -243,7 +243,7 @@ function Pipeline({ job }: { job: Job }) {
   const idx = PIPE.indexOf(job.status);
   if (job.status === 'archived') {
     return (
-      <div className="mt-5 flex items-center gap-2 rounded-xl bg-ink/[0.04] px-3 py-2.5 text-[12.5px] text-muted dark:bg-white/[0.05]">
+      <div className="mt-5 flex items-center gap-2 bg-ink/[0.04] px-3 py-2.5 text-[12.5px] text-muted dark:bg-white/[0.05]">
         <Archive className="size-4" />
         {job.archivedReason === 'rejected' ? 'Closed — not selected this time.' : job.archivedReason === 'withdrawn' ? 'You withdrew this application.' : 'Archived.'}
         <button onClick={() => moveJob(job.id, job.archivedFrom && job.archivedFrom !== 'preparing' ? job.archivedFrom : 'discovered')} className="ml-auto font-medium text-ink-2 hover:text-ink">
@@ -261,7 +261,7 @@ function Pipeline({ job }: { job: Job }) {
         return (
           <React.Fragment key={s}>
             <div className={cn('flex min-w-0 items-center gap-1.5 text-[11.5px] font-medium', current ? 'text-ink' : done ? 'text-muted' : 'text-faint')}>
-              <span className={cn('grid size-4 shrink-0 place-items-center rounded-full', current ? 'ring-[3px]' : '')} style={{ background: done || current ? meta.color : 'var(--line)', ['--tw-ring-color' as any]: `color-mix(in oklab, ${meta.color} 25%, transparent)` }}>
+              <span className={cn('grid size-4 shrink-0 place-items-center ', current ? 'ring-[3px]' : '')} style={{ background: done || current ? meta.color : 'var(--line)', ['--tw-ring-color' as any]: `color-mix(in oklab, ${meta.color} 25%, transparent)` }}>
                 {done && <Check className="size-2.5 text-white" strokeWidth={3.5} />}
               </span>
               <span className="truncate max-lg:hidden">{s === 'preparing' ? 'Hermes' : meta.label}</span>
@@ -280,7 +280,7 @@ const REPLY_LABEL: Record<string, string> = { rejection: 'Rejection', interview:
 function Replies({ job }: { job: Job }) {
   const mail = [...(job.mail || [])].reverse().slice(0, 4);
   return (
-    <div className="mt-4 overflow-hidden rounded-xl border border-line-2">
+    <div className="mt-4 overflow-hidden border border-line-2">
       <div className="flex items-center gap-1.5 border-b border-line-2 bg-panel px-3 py-2 text-[11.5px] font-semibold tracking-[0.06em] text-muted uppercase">
         <Mail className="size-3.5" /> From your inbox
       </div>
@@ -312,8 +312,8 @@ function StatusMenu({ job }: { job: Job }) {
   return (
     <Menu>
       <MenuTrigger asChild>
-        <button className="flex h-8 items-center gap-2 rounded-lg px-2.5 text-[12.5px] font-semibold text-ink-2 transition-colors hover:bg-ink/[0.05]">
-          <span className="size-2 rounded-full" style={{ background: meta.color }} />
+        <button className="flex h-8 items-center gap-2 px-2.5 text-[12.5px] font-semibold text-ink-2 transition-colors hover:bg-ink/[0.05]">
+          <span className="size-2 " style={{ background: meta.color }} />
           {meta.label}
           {job.status === 'archived' && job.archivedReason ? <span className="font-normal text-muted">· {job.archivedReason}</span> : null}
         </button>
@@ -322,12 +322,12 @@ function StatusMenu({ job }: { job: Job }) {
         {targets
           .filter(t => t.s !== job.status)
           .map(t => (
-            <MenuItem key={t.s} icon={<span className="block size-2 rounded-full" style={{ background: STATUS_META[t.s].color }} />} onSelect={() => moveJob(job.id, t.s)}>
+            <MenuItem key={t.s} icon={<span className="block size-2 " style={{ background: STATUS_META[t.s].color }} />} onSelect={() => moveJob(job.id, t.s)}>
               Move to {t.label}
             </MenuItem>
           ))}
         <MenuSeparator />
-        <MenuItem icon={<XCircle />} onSelect={() => jobActions.archive(job.id, 'rejected')}>
+        <MenuItem icon={<SquareX />} onSelect={() => jobActions.archive(job.id, 'rejected')}>
           Not selected (rejected)
         </MenuItem>
         <MenuItem icon={<Archive />} onSelect={() => jobActions.archive(job.id, job.appliedAt ? 'withdrawn' : 'dismissed')}>
@@ -385,7 +385,7 @@ function Footer({ job, onApply, goApplication }: { job: Job; onApply: () => void
       break;
     case 'applied':
       left = (
-        <Button variant="ghost" icon={<XCircle className="size-4" />} onClick={() => jobActions.archive(job.id, 'rejected')}>
+        <Button variant="ghost" icon={<SquareX className="size-4" />} onClick={() => jobActions.archive(job.id, 'rejected')}>
           Got rejected
         </Button>
       );
@@ -397,7 +397,7 @@ function Footer({ job, onApply, goApplication }: { job: Job; onApply: () => void
       break;
     case 'interviewing':
       left = (
-        <Button variant="ghost" icon={<XCircle className="size-4" />} onClick={() => jobActions.archive(job.id, 'rejected')}>
+        <Button variant="ghost" icon={<SquareX className="size-4" />} onClick={() => jobActions.archive(job.id, 'rejected')}>
           Didn't move forward
         </Button>
       );

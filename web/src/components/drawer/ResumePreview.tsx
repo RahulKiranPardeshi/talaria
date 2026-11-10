@@ -5,8 +5,8 @@ export function ResumePreview({ resume: r }: { resume: TailoredResume }) {
   const dates = (a?: string, b?: string) => [a, b].filter(Boolean).join(' – ');
   const c = r.contact || { links: [] };
   return (
-    <div className="rounded-2xl bg-[#e9e7e1] p-3 sm:p-5 dark:bg-[#0a0a0c]">
-      <article className="mx-auto max-w-[680px] rounded-[4px] bg-white px-10 py-9 text-[12.5px] leading-[1.45] text-[#16161d] shadow-[0_2px_8px_rgb(0_0_0/0.08),0_20px_40px_-20px_rgb(0_0_0/0.25)]" style={{ fontFamily: 'Helvetica, Arial, sans-serif' }}>
+    <div className="bg-[#e9e7e1] p-3 sm:p-5 dark:bg-[#0a0a0c]">
+      <article className="mx-auto max-w-[680px] bg-white px-10 py-9 text-[12.5px] leading-[1.45] text-[#16161d] shadow-[0_2px_8px_rgb(0_0_0/0.08),0_20px_40px_-20px_rgb(0_0_0/0.25)]" style={{ fontFamily: 'Helvetica, Arial, sans-serif' }}>
         <h1 className="text-[25px] leading-tight font-bold tracking-[-0.01em]">{r.name}</h1>
         {r.headline && <div className="mt-0.5 text-[13.5px] text-[#5a5a66]">{r.headline}</div>}
         <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[11.5px] text-[#5a5a66]">

@@ -1,6 +1,6 @@
 // The setup window's controls, drawn to match Talaria's own UI (web/src/index.css and components/ui.tsx):
 // warm off-white background, white cards with a hairline border, ink primary buttons, indigo switches
-// and progress, and the onboarding's numbered step circles that turn gold when done.
+// and progress, and the onboarding's numbered step squares that turn gold when done.
 // Compiled by setup.ps1 with the .NET Framework that ships with Windows, so it is C# 5.
 using System;
 using System.Collections.Generic;
@@ -35,16 +35,11 @@ namespace TalariaSetup
         public static readonly Color Bad = Color.FromArgb(207, 58, 76);
         public static readonly Color BadSoft = Color.FromArgb(251, 231, 233);
 
+        /// Square corners everywhere, matching the web app. The radius is kept so callers don't change.
         public static GraphicsPath Round(RectangleF r, float radius)
         {
             var p = new GraphicsPath();
-            float d = Math.Min(radius * 2, Math.Min(r.Width, r.Height));
-            if (d <= 0) { p.AddRectangle(r); return p; }
-            p.AddArc(r.X, r.Y, d, d, 180, 90);
-            p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
-            p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
-            p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
-            p.CloseFigure();
+            p.AddRectangle(r);
             return p;
         }
 
@@ -239,14 +234,14 @@ namespace TalariaSetup
             using (var path = Theme.Round(new RectangleF(0, 0, w, h), h / 2))
             using (var b = new SolidBrush(track)) g.FillPath(b, path);
             float d = h - 4 * Theme.S, x = 2 * Theme.S + (w - h) * pos;
-            using (var sb = new SolidBrush(Theme.Fade(Color.Black, 40))) g.FillEllipse(sb, x, 2 * Theme.S + Theme.S * 0.8f, d, d);
-            using (var tb = new SolidBrush(Color.White)) g.FillEllipse(tb, x, 2 * Theme.S, d, d);
+            using (var sb = new SolidBrush(Theme.Fade(Color.Black, 40))) g.FillRectangle(sb, x, 2 * Theme.S + Theme.S * 0.8f, d, d);
+            using (var tb = new SolidBrush(Color.White)) g.FillRectangle(tb, x, 2 * Theme.S, d, d);
         }
 
         protected override void Dispose(bool disposing) { if (disposing) timer.Dispose(); base.Dispose(disposing); }
     }
 
-    /// The onboarding's step circle: a number, a spinner while working, gold with a tick when done.
+    /// The onboarding's step square: a number, running dashes while working, gold with a tick when done.
     public class StepIcon : Smooth
     {
         string state = "pending";
@@ -278,29 +273,29 @@ namespace TalariaSetup
             var center = new RectangleF(0, 0, s, s);
             if (state == "done")
             {
-                using (var b = new SolidBrush(Theme.Gold)) g.FillEllipse(b, r);
-                using (var p = new Pen(Color.FromArgb(18, 17, 22), 2.2f * Theme.S) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round })
+                using (var b = new SolidBrush(Theme.Gold)) g.FillRectangle(b, r);
+                using (var p = new Pen(Color.FromArgb(18, 17, 22), 2.2f * Theme.S) { StartCap = LineCap.Square, EndCap = LineCap.Square, LineJoin = LineJoin.Miter })
                     g.DrawLines(p, new[] { new PointF(s * 0.3f, s * 0.52f), new PointF(s * 0.44f, s * 0.66f), new PointF(s * 0.71f, s * 0.37f) });
                 return;
             }
             if (state == "failed")
             {
-                using (var b = new SolidBrush(Theme.BadSoft)) g.FillEllipse(b, r);
-                using (var p = new Pen(Theme.Bad, w)) g.DrawEllipse(p, r);
+                using (var b = new SolidBrush(Theme.BadSoft)) g.FillRectangle(b, r);
+                using (var p = new Pen(Theme.Bad, w)) g.DrawRectangle(p, r.X, r.Y, r.Width, r.Height);
                 TextRenderer.DrawText(g, "!", new Font("Segoe UI Semibold", 12.5f * Theme.S, GraphicsUnit.Pixel), Rectangle.Round(center), Theme.Bad, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
                 return;
             }
             if (state == "active")
             {
-                using (var b = new SolidBrush(Theme.AccentSoft)) g.FillEllipse(b, r);
-                using (var p = new Pen(Theme.Accent, 2.2f * Theme.S) { StartCap = LineCap.Round, EndCap = LineCap.Round })
-                    g.DrawArc(p, new RectangleF(r.X + 3 * Theme.S, r.Y + 3 * Theme.S, r.Width - 6 * Theme.S, r.Height - 6 * Theme.S), angle, 250);
+                using (var b = new SolidBrush(Theme.AccentSoft)) g.FillRectangle(b, r);
+                using (var p = new Pen(Theme.Accent, 2.2f * Theme.S) { DashPattern = new[] { 2.5f, 1.5f }, DashOffset = -angle / 30f })
+                    g.DrawRectangle(p, r.X + 3 * Theme.S, r.Y + 3 * Theme.S, r.Width - 6 * Theme.S, r.Height - 6 * Theme.S);
                 return;
             }
-            using (var p = new Pen(Theme.Line, w)) g.DrawEllipse(p, r);
+            using (var p = new Pen(Theme.Line, w)) g.DrawRectangle(p, r.X, r.Y, r.Width, r.Height);
             if (state == "skipped")
             {
-                using (var p = new Pen(Theme.Faint, 1.6f * Theme.S) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+                using (var p = new Pen(Theme.Faint, 1.6f * Theme.S) { StartCap = LineCap.Square, EndCap = LineCap.Square })
                     g.DrawLine(p, s * 0.36f, s / 2, s * 0.64f, s / 2);
                 return;
             }
@@ -310,45 +305,18 @@ namespace TalariaSetup
         protected override void Dispose(bool disposing) { if (disposing) timer.Dispose(); base.Dispose(disposing); }
     }
 
-    /// Talaria's mark: three gold feathers on the dark rounded square (components/brand.tsx).
+    /// Talaria's mark: three square-cut gold bars on a dark square (components/brand.tsx).
     public class LogoMark : Smooth
     {
-        static readonly string[] Feathers =
+        // x, y, width, height on a 30-unit grid
+        static readonly float[][] Bars =
         {
-            "M5 22.5c4.6.2 9.4-1.2 13.6-4.6 2.6-2.2 4.6-4.9 6.1-8-1.7 5.4-4.8 9.7-9.1 12.5-3.2 2.1-6.8 2.8-10.6 2.3z",
-            "M6.8 18.6c3.5-.3 7-1.9 9.8-4.4 1.8-1.5 3.2-3.4 4.3-5.5-1.2 3.7-3.4 6.7-6.3 8.6-2.3 1.5-4.9 2.2-7.8 2.1z",
-            "M8.9 14.9c2.4-.5 4.7-1.7 6.6-3.5 1.1-1 2-2.2 2.6-3.5-.7 2.5-2.1 4.6-4 5.9-1.5 1.1-3.3 1.5-5.2 1.1z",
+            new[] { 4f, 19.5f, 22f, 4f },
+            new[] { 9f, 13f, 17f, 4f },
+            new[] { 14f, 6.5f, 12f, 4f },
         };
 
         public LogoMark() { BackColor = Theme.Bg; }
-
-        static GraphicsPath Parse(string d, float scale, float ox, float oy)
-        {
-            var path = new GraphicsPath();
-            var tokens = Regex.Matches(d, @"[Mmcz]|-?(?:\d+\.?\d*|\.\d+)");
-            var nums = new List<float>();
-            char cmd = ' ';
-            PointF cur = PointF.Empty;
-            Func<float, float, PointF> at = (x, y) => new PointF(ox + x * scale, oy + y * scale);
-            foreach (Match m in tokens)
-            {
-                string t = m.Value;
-                if (t == "M" || t == "m" || t == "c") { cmd = t[0]; nums.Clear(); continue; }
-                if (t == "z") { path.CloseFigure(); continue; }
-                nums.Add(float.Parse(t, CultureInfo.InvariantCulture));
-                if ((cmd == 'M' || cmd == 'm') && nums.Count == 2) { cur = new PointF(nums[0], nums[1]); path.StartFigure(); nums.Clear(); }
-                else if (cmd == 'c' && nums.Count == 6)
-                {
-                    var p1 = new PointF(cur.X + nums[0], cur.Y + nums[1]);
-                    var p2 = new PointF(cur.X + nums[2], cur.Y + nums[3]);
-                    var p3 = new PointF(cur.X + nums[4], cur.Y + nums[5]);
-                    path.AddBezier(at(cur.X, cur.Y), at(p1.X, p1.Y), at(p2.X, p2.Y), at(p3.X, p3.Y));
-                    cur = p3;
-                    nums.Clear();
-                }
-            }
-            return path;
-        }
 
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -356,13 +324,12 @@ namespace TalariaSetup
             Theme.Smooth(g);
             g.Clear(BackColor);
             float s = Math.Min(Width, Height) - 1;
-            using (var path = Theme.Round(new RectangleF(0, 0, s, s), s * 0.28f))
-            using (var b = new SolidBrush(Theme.Ink)) g.FillPath(b, path);
+            using (var b = new SolidBrush(Theme.Ink)) g.FillRectangle(b, 0, 0, s, s);
             float inner = s * 0.75f, off = (s - inner) / 2, scale = inner / 30f;
             var fills = new[] { Theme.Gold, Theme.Mix(Theme.Gold, Color.White, 0.35f), Theme.Mix(Theme.Gold, Color.White, 0.65f) };
-            for (int i = 0; i < Feathers.Length; i++)
-                using (var p = Parse(Feathers[i], scale, off, off))
-                using (var b = new SolidBrush(fills[i])) g.FillPath(b, p);
+            for (int i = 0; i < Bars.Length; i++)
+                using (var b = new SolidBrush(fills[i]))
+                    g.FillRectangle(b, off + Bars[i][0] * scale, off + Bars[i][1] * scale, Bars[i][2] * scale, Bars[i][3] * scale);
         }
     }
 }

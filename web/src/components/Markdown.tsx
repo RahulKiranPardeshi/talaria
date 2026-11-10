@@ -10,7 +10,7 @@ function inline(text: string): React.ReactNode[] {
     if (m.index > last) out.push(text.slice(last, m.index));
     if (m[1]) out.push(<strong key={i++}>{m[1]}</strong>);
     else if (m[2]) out.push(<em key={i++}>{m[2]}</em>);
-    else if (m[3]) out.push(<code key={i++} className="rounded bg-ink/5 px-1 font-mono text-[0.9em]">{m[3]}</code>);
+    else if (m[3]) out.push(<code key={i++} className="bg-ink/5 px-1 font-mono text-[0.9em]">{m[3]}</code>);
     last = re.lastIndex;
   }
   if (last < text.length) out.push(text.slice(last));

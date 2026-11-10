@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Bot, Check, Loader2, MessageSquareText, Mic, Monitor, Moon, RefreshCw, Square, Sun, TriangleAlert } from 'lucide-react';
+import { Bot, Check, Loader, MessageSquareText, Mic, Monitor, Moon, RefreshCw, Square, Sun, TriangleAlert } from 'lucide-react';
 import type { Settings } from '@shared/types';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
@@ -7,10 +7,21 @@ import { cn, timeAgo } from '@/lib/utils';
 import { Badge, Button, Card, CopyButton, Field, Input, SectionTitle, Segmented, Switch } from '@/components/ui';
 import { StatusDot } from '@/components/brand';
 import { BoardTour } from '@/components/BoardTour';
+import { PageSectionBlock, RailCard, SectionPage, StatusLine, useSectionJump } from '@/components/SectionPage';
+import { navigate } from '@/lib/router';
 import { getThemePref, setThemePref, type ThemePref } from '@/lib/theme';
 import { toast } from 'sonner';
 import { WavRecorder } from '@/lib/recorder';
 
+const SECTIONS = [
+  { id: 'general', label: 'General' },
+  { id: 'ai', label: 'AI model' },
+  { id: 'automation', label: 'Automation' },
+  { id: 'connections', label: 'Connections' },
+  { id: 'data', label: 'Data and privacy' },
+];
+
+/** How Talaria and Hermes run. Everything here saves the moment you change it. */
 export function SettingsView() {
   const settings = useApp(s => s.settings)!;
   const hermes = useApp(s => s.hermes);
@@ -63,153 +74,14 @@ export function SettingsView() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <>
       <BoardTour force={tour} onClose={() => setTour(false)} />
-      <header className="px-7 pt-6 pb-5">
-        <h1 className="font-display text-[27px] leading-none tracking-[-0.015em] text-ink">Settings</h1>
-        <p className="mt-2 text-[13.5px] text-muted">How Talaria talks to Hermes, how much it does on its own, and how it looks.</p>
-      </header>
-      <div className="min-h-0 flex-1 overflow-y-auto px-7 pb-16">
-        <div className="max-w-[860px] space-y-8">
-          <section>
-            <SectionTitle>Hermes agent</SectionTitle>
-            <Card className="overflow-hidden">
-              <div className="flex items-center gap-4 border-b border-line-2 p-5">
-                <div className={cn('grid size-11 place-items-center rounded-xl', hermes.ok ? 'bg-ok-soft text-ok' : 'bg-warn-soft text-warn')}>{hermes.ok ? <Bot className="size-5" /> : <TriangleAlert className="size-5" />}</div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 text-[14.5px] font-semibold text-ink">
-                    <StatusDot color={hermes.ok ? 'var(--ok)' : 'var(--warn)'} />
-                    {hermes.ok ? 'Connected' : hermes.installed ? 'Installed, but not answering' : 'Hermes not found'}
-                    {hermes.version && <Badge>v{hermes.version}</Badge>}
-                  </div>
-                  <div className="mt-0.5 truncate text-[12.5px] text-muted">
-                    {hermes.ok ? `Last check ${timeAgo(hermes.checkedAt)}${hermes.latencyMs ? ` · round trip ${(hermes.latencyMs / 1000).toFixed(1)}s` : ''}` : hermes.message}
-                  </div>
-                </div>
-                <Button variant="secondary" loading={checking} icon={<RefreshCw className="size-4" />} onClick={check}>
-                  Test
-                </Button>
-              </div>
-              <div className="grid gap-5 p-5 sm:grid-cols-2">
-                <Field label="Provider" hint="Any provider you've signed into with Hermes. Talaria tests it before switching.">
-                  <ProviderSelect value={h.provider} options={Object.keys(models)} disabled={Boolean(trying)} onChange={provider => tryAndSave(provider, provider === 'copilot' ? 'gpt-4.1' : provider === 'openai-codex' ? 'gpt-5.6-terra' : (models[provider] || [])[0] || h.model)} />
-                </Field>
-                <Field
-                  label={
-                    <span className="flex items-center gap-1.5">
-                      Model {trying && <Loader2 className="size-3 animate-spin text-gold" />}
-                    </span>
-                  }
-                  hint={
-                    trying
-                      ? `Testing ${trying} through Hermes…`
-                      : h.provider === 'copilot'
-                        ? 'gpt-4.1 and gpt-4o are unlimited on Copilot. Premium models use your monthly quota and may need enabling at github.com/settings/copilot.'
-                        : h.provider === 'openai-codex'
-                          ? 'Your ChatGPT account only accepts the gpt-5.6 models (sol, terra and luna). Calls count against your ChatGPT usage limits.'
-                          : undefined
-                  }
-                >
-                  <ModelSelect value={h.model} options={providerModels} disabled={Boolean(trying)} onChange={model => tryAndSave(h.provider, model)} />
-                </Field>
-                <Field label="Writing model (optional)" hint="A stronger model just for resumes & cover letters. Leave blank to use the main model.">
-                  <ModelSelect value={h.tailorModel || ''} options={['', ...providerModels]} disabled={Boolean(trying)} onChange={m => tryAndSave(h.provider, m, 'tailorModel')} />
-                </Field>
-                <Field label="Parallel tasks" hint="How many Hermes tasks may run at once.">
-                  <Segmented size="sm" value={String(h.concurrency)} onChange={v => save({ hermes: { ...h, concurrency: Number(v) } })} options={['1', '2', '3', '4'].map(v => ({ value: v, label: v }))} />
-                </Field>
-              </div>
-              <div className="flex items-center justify-between gap-4 border-t border-line-2 px-5 py-4">
-                <div>
-                  <div className="text-[13.5px] font-medium text-ink">Let Hermes search the web</div>
-                  <div className="text-[12.5px] text-muted">Adds Hermes's own web search to each scout (slower, finds roles beyond the job boards).</div>
-                </div>
-                <Switch checked={h.webSearch} onChange={webSearch => save({ hermes: { ...h, webSearch } })} label="Web search" />
-              </div>
-            </Card>
-          </section>
-
-          <section>
-            <SectionTitle>Applying</SectionTitle>
-            <Card className="divide-y divide-line-2">
-              <Row
-                title="Ask me before drafting"
-                desc="When you hand a job to Hermes, it first asks you a few questions (why this company, what to lead with, details your resume doesn't show) and drafts from your answers. Turn off to have Hermes draft straight away."
-              >
-                <Switch
-                  checked={settings.apply?.interviewFirst !== false}
-                  onChange={interviewFirst => save({ apply: { ...settings.apply, interviewFirst } }, interviewFirst ? 'Hermes will ask before drafting' : 'Hermes will draft straight away')}
-                  label="Ask me first"
-                />
-              </Row>
-              <Row
-                title="Submit applications for me"
-                desc="After you approve an application, Talaria opens the company's form (Greenhouse, Lever or Ashby) in its own browser window, fills every field, uploads your tailored resume and cover letter, and submits. It stops and asks you if the form needs something it doesn't know, or if a CAPTCHA appears. Other job sites use the Apply kit."
-              >
-                <Switch checked={settings.apply?.autoSubmit ?? false} onChange={autoSubmit => save({ apply: { ...settings.apply, autoSubmit } }, autoSubmit ? 'Talaria will submit approved applications' : 'Approved applications open the Apply kit instead')} label="Submit for me" />
-              </Row>
-            </Card>
-          </section>
-
-          <LinkedInSection />
-
-          <GmailSection />
-
-          <VoiceSection />
-
-          <section>
-            <SectionTitle>Autopilot</SectionTitle>
-            <Card className="divide-y divide-line-2">
-              <Row title="Search automatically" desc={`Scouts for new jobs every ${ap.scoutEveryHours} hours while Talaria is running.${ap.lastScoutAt ? ` Last search ${timeAgo(ap.lastScoutAt, false)}.` : ''}`}>
-                <Switch checked={ap.enabled} onChange={enabled => save({ autopilot: { ...ap, enabled } }, enabled ? 'Autopilot on' : 'Autopilot off')} label="Autopilot" />
-              </Row>
-              <Row title="How often">
-                <Segmented size="sm" value={String(ap.scoutEveryHours)} onChange={v => save({ autopilot: { ...ap, scoutEveryHours: Number(v) } })} options={['6', '12', '24', '48'].map(v => ({ value: v, label: `${v}h` }))} />
-              </Row>
-              <Row title="Pre-analyze promising jobs" desc="Hermes writes the full fit analysis for new jobs that score at least this high, so it's ready when you open them.">
-                <Segmented size="sm" value={String(ap.autoAnalyzeAbove)} onChange={v => save({ autopilot: { ...ap, autoAnalyzeAbove: Number(v) } })} options={['60', '70', '80', '101'].map(v => ({ value: v, label: v === '101' ? 'Off' : `${v}+` }))} />
-              </Row>
-              <Row title="Auto-prepare top matches" desc="Hermes drafts full applications for the very best matches on its own. They still wait in “Needs you” — nothing is ever submitted without you.">
-                <Segmented
-                  size="sm"
-                  value={ap.autoPrepareAbove == null ? 'off' : String(ap.autoPrepareAbove)}
-                  onChange={v => save({ autopilot: { ...ap, autoPrepareAbove: v === 'off' ? null : Number(v) } })}
-                  options={[
-                    { value: 'off', label: 'Off' },
-                    { value: '85', label: '85+' },
-                    { value: '80', label: '80+' },
-                    { value: '75', label: '75+' },
-                  ]}
-                />
-              </Row>
-            </Card>
-          </section>
-
-          <section>
-            <SectionTitle>Talk to your board from Hermes</SectionTitle>
-            <Card className="p-5">
-              <div className="flex items-start gap-3">
-                <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent-soft text-accent">
-                  <MessageSquareText className="size-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[14px] font-semibold text-ink">Connect Talaria to Hermes as an MCP server</div>
-                  <p className="mt-1 text-[13px] leading-relaxed text-muted">Then chat with Hermes anywhere — the terminal, or Telegram/Discord if you set up its gateway — and ask things like “what needs my input?”, “find me new jobs”, or “summarize what I applied to this week”.</p>
-                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-[#121116] px-3.5 py-2.5 font-mono text-[12.5px] text-[#e9e7f2]">
-                    <span className="text-[#e7b04c]">$</span>
-                    <span className="flex-1 truncate">hermes mcp add talaria --url {mcpUrl}</span>
-                    <CopyButton text={`hermes mcp add talaria --url ${mcpUrl}`} className="border-white/15 text-[#e9e7f2] hover:bg-white/10" />
-                  </div>
-                  <p className="mt-2 text-[12px] text-faint">Talaria must be running for Hermes to reach it.</p>
-                </div>
-              </div>
-            </Card>
-          </section>
-
-          <section>
-            <SectionTitle>Appearance</SectionTitle>
-            <Card className="p-5">
+      <SectionPage title="Settings" subtitle="How Talaria and Hermes run. Changes here save as soon as you make them." sections={SECTIONS} rail={<StatusRail />}>
+        <PageSectionBlock id="general" title="General">
+          <Card className="divide-y divide-line-2">
+            <Row title="Appearance">
               <Segmented
+                size="sm"
                 value={theme}
                 onChange={t => (setTheme(t), setThemePref(t))}
                 options={[
@@ -239,20 +111,156 @@ export function SettingsView() {
                   },
                 ]}
               />
-            </Card>
-          </section>
+            </Row>
+            <Row title="Replay the welcome tour" desc="A quick walk through the board, in case you want a reminder of how it works.">
+              <Button variant="outline" onClick={() => setTour(true)}>
+                Show the tour
+              </Button>
+            </Row>
+          </Card>
+        </PageSectionBlock>
 
-          <section>
-            <SectionTitle>Data</SectionTitle>
-            <Card className="divide-y divide-line-2">
-              <Row title="Where your data lives" desc="Everything is stored locally in the data/ folder next to the app. Nothing leaves your computer except prompts Hermes sends to your model provider.">
+        <PageSectionBlock id="ai" title="AI model" desc="The model Hermes uses for every task, and what it's allowed to do.">
+          <Card className="overflow-hidden">
+            <div className="flex items-center gap-4 border-b border-line-2 p-5">
+              <div className={cn('grid size-11 place-items-center ', hermes.ok ? 'bg-ok-soft text-ok' : 'bg-warn-soft text-warn')}>{hermes.ok ? <Bot className="size-5" /> : <TriangleAlert className="size-5" />}</div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 text-[14.5px] font-semibold text-ink">
+                  <StatusDot color={hermes.ok ? 'var(--ok)' : 'var(--warn)'} />
+                  {hermes.ok ? 'Connected' : hermes.installed ? 'Installed, but not answering' : 'Hermes not found'}
+                  {hermes.version && <Badge>v{hermes.version}</Badge>}
+                </div>
+                <div className="mt-0.5 truncate text-[12.5px] text-muted">
+                  {hermes.ok ? `Last check ${timeAgo(hermes.checkedAt)}${hermes.latencyMs ? ` · round trip ${(hermes.latencyMs / 1000).toFixed(1)}s` : ''}` : hermes.message}
+                </div>
+              </div>
+              <Button variant="secondary" loading={checking} icon={<RefreshCw className="size-4" />} onClick={check}>
+                Test
+              </Button>
+            </div>
+            <div className="grid gap-5 p-5 sm:grid-cols-2">
+              <Field label="Provider" hint="Any provider you've signed into with Hermes. Talaria tests it before switching.">
+                <ProviderSelect value={h.provider} options={Object.keys(models)} disabled={Boolean(trying)} onChange={provider => tryAndSave(provider, (models[provider] || [])[0] || h.model)} />
+              </Field>
+              <Field
+                label={
+                  <span className="flex items-center gap-1.5">
+                    Model {trying && <Loader className="size-3 animate-spin text-gold" />}
+                  </span>
+                }
+                hint={
+                  trying
+                    ? `Testing ${trying} through Hermes…`
+                    : h.provider === 'copilot'
+                      ? 'gpt-4.1 and gpt-4o are unlimited on Copilot. Premium models use your monthly quota and may need enabling at github.com/settings/copilot.'
+                      : h.provider === 'openai-codex'
+                        ? 'The list shows the models your ChatGPT plan offers. Calls count against your ChatGPT usage limits.'
+                        : undefined
+                }
+              >
+                <ModelSelect value={h.model} options={providerModels} disabled={Boolean(trying)} onChange={model => tryAndSave(h.provider, model)} />
+              </Field>
+              <Field label="Writing model (optional)" hint="A stronger model just for resumes & cover letters. Leave blank to use the main model.">
+                <ModelSelect value={h.tailorModel || ''} options={['', ...providerModels]} disabled={Boolean(trying)} onChange={m => tryAndSave(h.provider, m, 'tailorModel')} />
+              </Field>
+              <Field label="Parallel tasks" hint="How many Hermes tasks may run at once.">
+                <Segmented size="sm" value={String(h.concurrency)} onChange={v => save({ hermes: { ...h, concurrency: Number(v) } })} options={['1', '2', '3', '4'].map(v => ({ value: v, label: v }))} />
+              </Field>
+            </div>
+            <div className="flex items-center justify-between gap-4 border-t border-line-2 px-5 py-4">
+              <div>
+                <div className="text-[13.5px] font-medium text-ink">Let Hermes browse the web</div>
+                <div className="text-[12.5px] leading-relaxed text-muted">
+                  Hermes's own web search. Needed for the Hermes web search source and PhD search in{' '}
+                  <button onClick={() => navigate({ view: 'search', section: 'where' })} className="text-accent hover:underline">
+                    Job search
+                  </button>
+                  . Slower, but finds roles beyond the job boards.
+                </div>
+              </div>
+              <Switch checked={h.webSearch} onChange={webSearch => save({ hermes: { ...h, webSearch } }, webSearch ? 'Hermes can browse the web' : "Hermes won't browse the web")} label="Let Hermes browse the web" />
+            </div>
+          </Card>
+        </PageSectionBlock>
+
+        <PageSectionBlock id="automation" title="Automation" desc="How much Hermes does on its own, from least to most hands-off. Nothing is ever submitted unless you turn on the last one.">
+          <Card className="divide-y divide-line-2">
+            <Row step={1} title="Search automatically" desc={`Scouts for new jobs every ${ap.scoutEveryHours} hours while Talaria is running.${ap.lastScoutAt ? ` Last search ${timeAgo(ap.lastScoutAt, false)}.` : ''}`}>
+              <div className="flex items-center gap-3">
+                <Segmented size="sm" value={String(ap.scoutEveryHours)} onChange={v => save({ autopilot: { ...ap, scoutEveryHours: Number(v) } })} options={['6', '12', '24', '48'].map(v => ({ value: v, label: `${v}h` }))} />
+                <Switch checked={ap.enabled} onChange={enabled => save({ autopilot: { ...ap, enabled } }, enabled ? 'Autopilot on' : 'Autopilot off')} label="Search automatically" />
+              </div>
+            </Row>
+            <Row step={2} title="Pre-analyze promising jobs" desc="Hermes writes the full fit analysis for new jobs that score at least this high, so it's ready when you open them.">
+              <Segmented size="sm" value={String(ap.autoAnalyzeAbove)} onChange={v => save({ autopilot: { ...ap, autoAnalyzeAbove: Number(v) } })} options={['60', '70', '80', '101'].map(v => ({ value: v, label: v === '101' ? 'Off' : `${v}+` }))} />
+            </Row>
+            <Row
+              step={3}
+              title="Ask me before drafting"
+              desc="When you hand a job to Hermes, it first asks you a few questions (why this company, what to lead with, details your resume doesn't show) and drafts from your answers. Turn off to have Hermes draft straight away."
+            >
+              <Switch
+                checked={settings.apply?.interviewFirst !== false}
+                onChange={interviewFirst => save({ apply: { ...settings.apply, interviewFirst } }, interviewFirst ? 'Hermes will ask before drafting' : 'Hermes will draft straight away')}
+                label="Ask me first"
+              />
+            </Row>
+            <Row step={4} title="Auto-prepare top matches" desc="Hermes drafts full applications for the very best matches on its own. They still wait in “Needs you”.">
+              <Segmented
+                size="sm"
+                value={ap.autoPrepareAbove == null ? 'off' : String(ap.autoPrepareAbove)}
+                onChange={v => save({ autopilot: { ...ap, autoPrepareAbove: v === 'off' ? null : Number(v) } })}
+                options={[
+                  { value: 'off', label: 'Off' },
+                  { value: '85', label: '85+' },
+                  { value: '80', label: '80+' },
+                  { value: '75', label: '75+' },
+                ]}
+              />
+            </Row>
+            <Row
+              step={5}
+              title="Submit applications for me"
+              desc="After you approve an application, Talaria opens the company's form (Greenhouse, Lever or Ashby) in its own browser window, fills every field, uploads your tailored resume and cover letter, and submits. It stops and asks you if the form needs something it doesn't know, or if a CAPTCHA appears. Other job sites use the Apply kit."
+            >
+              <Switch checked={settings.apply?.autoSubmit ?? false} onChange={autoSubmit => save({ apply: { ...settings.apply, autoSubmit } }, autoSubmit ? 'Talaria will submit approved applications' : 'Approved applications open the Apply kit instead')} label="Submit for me" />
+            </Row>
+          </Card>
+        </PageSectionBlock>
+
+        <PageSectionBlock id="connections" title="Connections" desc="Accounts and keys. What they're used for is chosen where it's used.">
+          <div className="space-y-4">
+            <LinkedInSection />
+            <GmailSection />
+            <VoiceSection />
+            <Card className="p-5">
+              <div className="flex items-start gap-3">
+                <div className="grid size-9 shrink-0 place-items-center bg-accent-soft text-accent">
+                  <MessageSquareText className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[14px] font-semibold text-ink">Talk to your board from Hermes</div>
+                  <p className="mt-1 text-[13px] leading-relaxed text-muted">Connect Talaria to Hermes as an MCP server. Then chat with Hermes anywhere — the terminal, or Telegram/Discord if you set up its gateway — and ask things like “what needs my input?”, “find me new jobs”, or “summarize what I applied to this week”.</p>
+                  <div className="mt-3 flex items-center gap-2 bg-[#121116] px-3.5 py-2.5 font-mono text-[12.5px] text-[#e9e7f2]">
+                    <span className="text-[#e7b04c]">$</span>
+                    <span className="flex-1 truncate">hermes mcp add talaria --url {mcpUrl}</span>
+                    <CopyButton text={`hermes mcp add talaria --url ${mcpUrl}`} className="border-white/15 text-[#e9e7f2] hover:bg-white/10" />
+                  </div>
+                  <p className="mt-2 text-[12px] text-faint">Talaria must be running for Hermes to reach it.</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </PageSectionBlock>
+
+        <PageSectionBlock id="data" title="Data and privacy">
+          <div className="space-y-3">
+            <Card>
+              <Row title="Where your data lives" desc="Everything is stored locally in the data/ folder next to the app. Nothing leaves your computer except prompts Hermes sends to your model provider, and recordings sent to Google if you use voice typing.">
                 <span />
               </Row>
-              <Row title="Replay the welcome tour" desc="A quick walk through the board, in case you want a reminder of how it works.">
-                <Button variant="outline" onClick={() => setTour(true)}>
-                  Show the tour
-                </Button>
-              </Row>
+            </Card>
+            <Card className="ring-1 ring-bad/20">
               <Row title="Start over" desc="Deletes your profile, every job and all history. Can't be undone.">
                 <Button
                   variant="outline"
@@ -269,17 +277,54 @@ export function SettingsView() {
                 </Button>
               </Row>
             </Card>
-          </section>
-        </div>
-      </div>
-    </div>
+          </div>
+        </PageSectionBlock>
+      </SectionPage>
+    </>
   );
 }
 
-function LinkedInSection() {
+/** What's on, what's broken and when things last ran, each linking to where you fix it. */
+function StatusRail() {
+  const hermes = useApp(s => s.hermes);
+  const settings = useApp(s => s.settings);
+  const jump = useSectionJump();
+  if (!settings) return null;
+  const ap = settings.autopilot;
+  const g = settings.gmail;
+  const paused = hermes.rateLimitedUntil && Date.parse(hermes.rateLimitedUntil) > Date.now();
+  const next = (() => {
+    if (!ap.enabled) return null;
+    const due = (ap.lastScoutAt ? Date.parse(ap.lastScoutAt) : 0) + ap.scoutEveryHours * 3600_000 - Date.now();
+    if (due <= 0) return 'soon';
+    const hrs = Math.floor(due / 3600_000);
+    return hrs >= 1 ? `in ${hrs}h` : `in ${Math.max(1, Math.round(due / 60_000))}m`;
+  })();
+  return (
+    <RailCard title="Status">
+      <StatusLine
+        tone={paused ? 'warn' : hermes.ok ? 'ok' : 'bad'}
+        title={paused ? 'Hermes paused' : hermes.ok ? 'Hermes connected' : 'Hermes not answering'}
+        detail={paused ? `Rate limit · resumes ${new Date(hermes.rateLimitedUntil!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : hermes.ok ? `${hermes.provider} · ${hermes.model}` : hermes.message}
+        onClick={() => jump('ai')}
+      />
+      <StatusLine tone={settings.hermes.webSearch ? 'ok' : 'off'} title={settings.hermes.webSearch ? 'Web browsing on' : 'Web browsing off'} onClick={() => jump('ai')} />
+      <StatusLine tone={ap.enabled ? 'ok' : 'off'} title={ap.enabled ? 'Autopilot on' : 'Autopilot off'} detail={ap.enabled ? `Next search ${next}` : 'Searches only when you ask'} onClick={() => jump('automation')} />
+      <StatusLine tone={settings.linkedin.connected ? 'ok' : 'off'} title={settings.linkedin.connected ? 'LinkedIn connected' : 'LinkedIn not connected'} onClick={() => jump('connections')} />
+      <StatusLine
+        tone={!g?.connected ? 'off' : g.error ? 'warn' : 'ok'}
+        title={g?.connected ? 'Gmail connected' : 'Gmail not connected'}
+        detail={g?.connected ? (g.error ? `Last check failed` : g.lastCheckAt ? `Checked ${timeAgo(g.lastCheckAt, false)}` : undefined) : undefined}
+        onClick={() => jump('connections')}
+      />
+      <StatusLine tone={settings.voice?.connected ? 'ok' : 'off'} title={settings.voice?.connected ? 'Voice typing set up' : 'Voice typing not set up'} onClick={() => jump('connections')} />
+    </RailCard>
+  );
+}
+
+export function LinkedInSection() {
   const li = useApp(s => s.settings?.linkedin);
   const enabled = useApp(s => Boolean(s.preferences?.sources.linkedin));
-  const sources = useApp(s => s.preferences?.sources);
   const [connecting, setConnecting] = React.useState(false);
   React.useEffect(() => {
     if (li?.connected) setConnecting(false);
@@ -289,7 +334,6 @@ function LinkedInSection() {
     setConnecting(true);
     try {
       await api.post('/api/linkedin/connect');
-      toast('Sign in to LinkedIn in the Talaria browser window that just opened', { duration: 8000 });
     } catch {
       setConnecting(false);
     }
@@ -319,15 +363,12 @@ function LinkedInSection() {
           )}
         </Row>
         <Row
-          title="Search LinkedIn for jobs"
-          desc="Read-only and slow on purpose: up to 20 postings per search, with human-like pauses. It never uses Easy Apply or touches your profile, messages or network. LinkedIn's terms prohibit automated access, so there's some risk of your account being restricted — keep it off if that worries you."
+          title={enabled ? 'Searched for jobs' : 'Not searched for jobs'}
+          desc="Whether Talaria searches LinkedIn for jobs is part of your job search."
         >
-          <Switch
-            checked={enabled}
-            disabled={!li?.connected}
-            onChange={v => api.put('/api/preferences', { sources: { ...sources, linkedin: v } }).then(() => toast.success(v ? 'LinkedIn added to job searches' : 'LinkedIn removed from job searches'))}
-            label="Search LinkedIn"
-          />
+          <Button variant="ghost" onClick={() => navigate({ view: 'search', section: 'where' })}>
+            Job search sources
+          </Button>
         </Row>
       </Card>
     </section>
@@ -437,12 +478,12 @@ function VoiceSection() {
                   disabled={state === 'transcribing'}
                   aria-label={state === 'recording' ? 'Stop recording' : 'Start recording'}
                   className={cn(
-                    'relative grid size-14 shrink-0 place-items-center rounded-full transition-colors disabled:opacity-60',
+                    'relative grid size-14 shrink-0 place-items-center transition-colors disabled:opacity-60',
                     state === 'recording' ? 'bg-bad text-white' : 'bg-ink text-bg hover:bg-ink/85',
                   )}
                 >
-                  {state === 'recording' && <span className="absolute inset-0 rounded-full bg-bad/40" style={{ transform: `scale(${1 + level * 0.6})`, transition: 'transform 80ms' }} />}
-                  {state === 'transcribing' ? <Loader2 className="relative size-5 animate-spin" /> : state === 'recording' ? <Square className="relative size-5 fill-current" /> : <Mic className="relative size-6" />}
+                  {state === 'recording' && <span className="absolute inset-0 bg-bad/40" style={{ transform: `scale(${1 + level * 0.6})`, transition: 'transform 80ms' }} />}
+                  {state === 'transcribing' ? <Loader className="relative size-5 animate-spin" /> : state === 'recording' ? <Square className="relative size-5 fill-current" /> : <Mic className="relative size-6" />}
                 </button>
                 <div className="text-[13px] text-muted">
                   {state === 'recording' ? (
@@ -457,7 +498,7 @@ function VoiceSection() {
                 </div>
               </div>
               {trials.map((t, i) => (
-                <div key={trials.length - i} className="rounded-xl bg-panel p-4">
+                <div key={trials.length - i} className="bg-panel p-4">
                   <div className="mb-1.5 text-[11.5px] text-faint">
                     Try {trials.length - i} · {t.seconds}s of speech · transcribed in {(t.ms / 1000).toFixed(1)}s
                   </div>
@@ -471,7 +512,7 @@ function VoiceSection() {
                 {words && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     {words.map(w => (
-                      <span key={w} className="rounded-md bg-ink/[0.05] px-2 py-0.5 text-[11.5px] text-muted dark:bg-white/[0.06]">
+                      <span key={w} className="bg-ink/[0.05] px-2 py-0.5 text-[11.5px] text-muted dark:bg-white/[0.06]">
                         {w}
                       </span>
                     ))}
@@ -486,7 +527,7 @@ function VoiceSection() {
   );
 }
 
-function GmailSection() {
+export function GmailSection() {
   const g = useApp(s => s.settings?.gmail);
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -584,24 +625,27 @@ function GmailSection() {
   );
 }
 
-function Row({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
+function Row({ title, desc, children, step }: { title: string; desc?: string; children: React.ReactNode; step?: number }) {
   return (
     <div className="flex items-center justify-between gap-6 px-5 py-4">
-      <div className="min-w-0">
-        <div className="text-[13.5px] font-medium text-ink">{title}</div>
-        {desc && <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted">{desc}</div>}
+      <div className="flex min-w-0 flex-1 gap-3">
+        {step != null && <span className="mt-px grid size-5 shrink-0 place-items-center border border-line text-[10.5px] font-semibold text-muted tabular-nums">{step}</span>}
+        <div className="min-w-0">
+          <div className="text-[13.5px] font-medium text-ink">{title}</div>
+          {desc && <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted">{desc}</div>}
+        </div>
       </div>
       <div className="shrink-0">{children}</div>
     </div>
   );
 }
 
-const PROVIDER_LABEL: Record<string, string> = { copilot: 'GitHub Copilot', anthropic: 'Anthropic', gemini: 'Google Gemini', openrouter: 'OpenRouter', openai: 'OpenAI', 'openai-codex': 'ChatGPT / Codex', nous: 'Nous Portal' };
+const PROVIDER_LABEL: Record<string, string> = { copilot: 'GitHub Copilot', anthropic: 'Claude (Anthropic)', gemini: 'Google Gemini', openrouter: 'OpenRouter', openai: 'OpenAI', 'openai-codex': 'ChatGPT / Codex', nous: 'Nous Portal' };
 
 function ProviderSelect({ value, options, onChange, disabled }: { value: string; options: string[]; onChange: (v: string) => void; disabled?: boolean }) {
-  const all = Array.from(new Set([value, 'copilot', 'openai-codex', ...options]));
+  const all = Array.from(new Set([value, 'openai-codex', 'anthropic', 'copilot', ...options]));
   return (
-    <select disabled={disabled} value={value} onChange={e => onChange(e.target.value)} className="h-9 w-full rounded-lg border border-line bg-card px-2.5 text-[13.5px] text-ink outline-none focus:border-accent/60 disabled:opacity-60">
+    <select disabled={disabled} value={value} onChange={e => onChange(e.target.value)} className="h-9 w-full border border-line bg-card px-2.5 text-[13.5px] text-ink outline-none focus:border-accent/60 disabled:opacity-60">
       {all.map(p => (
         <option key={p} value={p}>
           {PROVIDER_LABEL[p] || p}
@@ -630,7 +674,7 @@ export function ModelSelect({ value, options, onChange, disabled }: { value: str
       disabled={disabled}
       value={value}
       onChange={e => (e.target.value === '__custom' ? setCustom(true) : onChange(e.target.value))}
-      className="h-9 w-full rounded-lg border border-line bg-card px-2.5 text-[13.5px] text-ink outline-none focus:border-accent/60 disabled:opacity-60"
+      className="h-9 w-full border border-line bg-card px-2.5 text-[13.5px] text-ink outline-none focus:border-accent/60 disabled:opacity-60"
     >
       {all.map(m => (
         <option key={m} value={m}>

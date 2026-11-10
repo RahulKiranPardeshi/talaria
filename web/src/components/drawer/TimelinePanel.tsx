@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Bot, Flag, StickyNote, User } from 'lucide-react';
+import { Bot, Flag, SquareUser, StickyNote } from 'lucide-react';
 import type { Job } from '@shared/types';
 import { jobActions } from '@/lib/store';
 import { cn, timeAgo } from '@/lib/utils';
@@ -17,7 +17,7 @@ export function TimelinePanel({ job }: { job: Job }) {
   }, [notes]);
 
   const events = [...job.timeline].reverse();
-  const icon = (k?: string) => (k === 'agent' ? Bot : k === 'user' ? User : k === 'status' ? Flag : StickyNote);
+  const icon = (k?: string) => (k === 'agent' ? Bot : k === 'user' ? SquareUser : k === 'status' ? Flag : StickyNote);
 
   return (
     <div className="space-y-7">
@@ -26,13 +26,13 @@ export function TimelinePanel({ job }: { job: Job }) {
         <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Recruiter name, referral, interview prep, salary talk…" className="min-h-[120px] bg-card" />
       </section>
       <section>
-        <SectionTitle>History</SectionTitle>
+        <SectionTitle>SquareStack</SectionTitle>
         <ol className="relative space-y-0.5 before:absolute before:top-3 before:bottom-3 before:left-[13px] before:w-px before:bg-line">
           {events.map((e, i) => {
             const Icon = icon(e.kind);
             return (
               <li key={i} className="relative flex items-start gap-3 py-2">
-                <span className={cn('relative grid size-[27px] shrink-0 place-items-center rounded-full border-[3px] border-bg', e.kind === 'agent' ? 'bg-gold-soft text-gold' : e.kind === 'user' ? 'bg-accent-soft text-accent' : 'bg-line-2 text-muted')}>
+                <span className={cn('relative grid size-[27px] shrink-0 place-items-center border-[3px] border-bg', e.kind === 'agent' ? 'bg-gold-soft text-gold' : e.kind === 'user' ? 'bg-accent-soft text-accent' : 'bg-line-2 text-muted')}>
                   <Icon className="size-3" />
                 </span>
                 <div className="min-w-0 flex-1 pt-1">

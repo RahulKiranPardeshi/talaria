@@ -389,6 +389,8 @@ export async function detectCompany(input: { name?: string; url?: string }, pref
       found = html ? await fromText(html) : null;
     }
     if (found) return { ...found, company: { ...found.company, name: name || found.company.name, domain: domainFromUrl(url) } };
+    // Nothing loaded at all: a typo'd or dead link, not a careers site to watch.
+    if (!html.trim()) throw new Error("That link didn't open. Check it, or type the company's name instead.");
     const domain = domainFromUrl(url);
     const company: TargetCompany = { name: name || (domain || '').split('.')[0].replace(/\b\w/g, x => x.toUpperCase()), ats: 'site', slug: domain || url, url, domain };
     const listed = harvestLinks(html, url).length;

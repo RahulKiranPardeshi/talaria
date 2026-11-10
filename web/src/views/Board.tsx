@@ -16,7 +16,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AnimatePresence, motion } from 'motion/react';
-import { ArrowDownWideNarrow, Archive, Clock, GraduationCap, Mail, Plus, Radar, RefreshCw, Search, Sparkles, Star, Trash2, Wifi } from 'lucide-react';
+import { Archive, ArrowDownWideNarrow, GraduationCap, Hourglass, Mail, Plus, RefreshCw, ScanSearch, Search, Sparkles, Star, Trash2, Wifi } from 'lucide-react';
 import { BOARD_COLUMNS, type Job, type JobStatus } from '@shared/types';
 import { jobTrack, type Track } from '@shared/track';
 import { isStaleDraft, resumeHash } from '@shared/resume';
@@ -207,17 +207,17 @@ export function Board() {
               onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === 'Escape' && (setQuery(''), (e.target as HTMLInputElement).blur())}
               placeholder="Filter board"
-              className="h-9 w-[200px] rounded-lg border border-line bg-card pr-8 pl-8 text-[13px] text-ink shadow-[0_1px_1px_rgb(0_0_0/0.02)] outline-none placeholder:text-faint focus:border-accent/50 focus:ring-[3px] focus:ring-accent/15"
+              className="h-9 w-[200px] border border-line bg-card pr-8 pl-8 text-[13px] text-ink shadow-[0_1px_1px_rgb(0_0_0/0.02)] outline-none placeholder:text-faint focus:border-accent/50 focus:ring-[3px] focus:ring-accent/15"
             />
             <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[11px] text-faint">/</span>
           </div>
           <Tooltip content="Remote only">
-            <button onClick={() => setRemoteOnly(v => !v)} className={cn('grid size-9 place-items-center rounded-lg border transition-colors', remoteOnly ? 'border-accent/40 bg-accent-soft text-accent' : 'border-line bg-card text-muted hover:text-ink')}>
+            <button onClick={() => setRemoteOnly(v => !v)} className={cn('grid size-9 place-items-center border transition-colors', remoteOnly ? 'border-accent/40 bg-accent-soft text-accent' : 'border-line bg-card text-muted hover:text-ink')}>
               <Wifi className="size-4" />
             </button>
           </Tooltip>
           <Tooltip content="Starred only">
-            <button onClick={() => setStarredOnly(v => !v)} className={cn('grid size-9 place-items-center rounded-lg border transition-colors', starredOnly ? 'border-gold/40 bg-gold-soft text-gold' : 'border-line bg-card text-muted hover:text-ink')}>
+            <button onClick={() => setStarredOnly(v => !v)} className={cn('grid size-9 place-items-center border transition-colors', starredOnly ? 'border-gold/40 bg-gold-soft text-gold' : 'border-line bg-card text-muted hover:text-ink')}>
               <Star className={cn('size-4', starredOnly && 'fill-gold')} />
             </button>
           </Tooltip>
@@ -273,8 +273,8 @@ function RateLimitBanner() {
   const mins = Math.max(1, Math.round((Date.parse(until) - Date.now()) / 60_000));
   return (
     <div className="px-7">
-      <div className="mb-4 flex items-start gap-3 rounded-2xl border border-warn/25 bg-warn-soft/60 px-4 py-3">
-        <Clock className="mt-0.5 size-4 shrink-0 text-warn" />
+      <div className="mb-4 flex items-start gap-3 border border-warn/25 bg-warn-soft/60 px-4 py-3">
+        <Hourglass className="mt-0.5 size-4 shrink-0 text-warn" />
         <div className="text-[13px] leading-relaxed text-ink-2">
           <span className="font-semibold text-ink">GitHub Copilot is rate-limiting Hermes until {at}</span> (about {mins} min). {queued ? `${queued} queued task${queued === 1 ? '' : 's'} will` : 'Anything you start will'} continue automatically then. Nothing is lost.
           <span className="text-muted"> Greenhouse, Lever and Ashby links can still be added now.</span>
@@ -289,8 +289,8 @@ function ScoutBanner() {
   const pct = Math.round((scout.progress ?? 0) * 100);
   return (
     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden px-7">
-      <div className="mb-4 flex items-center gap-4 rounded-2xl bg-[#17161c] px-4 py-3 text-white shadow-lift dark:ring-1 dark:ring-white/10">
-        <div className="grid size-9 shrink-0 animate-float place-items-center rounded-xl bg-white/10">
+      <div className="mb-4 flex items-center gap-4 bg-[#17161c] px-4 py-3 text-white shadow-lift dark:ring-1 dark:ring-white/10">
+        <div className="grid size-9 shrink-0 animate-float place-items-center bg-white/10">
           <Logo className="size-6" />
         </div>
         <div className="min-w-0 flex-1">
@@ -298,8 +298,8 @@ function ScoutBanner() {
             <span className="truncate font-medium">{scout.phase || 'Searching'}…</span>
             <span className="shrink-0 text-[12px] text-white/55 tabular-nums">{scout.found ? `${scout.found} postings scanned · ` : ''}{pct}%</span>
           </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10">
-            <motion.div className="h-full rounded-full" style={{ background: 'linear-gradient(90deg, var(--gold), color-mix(in oklab, var(--gold) 50%, white))' }} animate={{ width: `${Math.max(4, pct)}%` }} transition={{ type: 'spring', bounce: 0, duration: 0.8 }} />
+          <div className="mt-2 h-1.5 overflow-hidden bg-white/10">
+            <motion.div className="h-full " style={{ background: 'linear-gradient(90deg, var(--gold), color-mix(in oklab, var(--gold) 50%, white))' }} animate={{ width: `${Math.max(4, pct)}%` }} transition={{ type: 'spring', bounce: 0, duration: 0.8 }} />
           </div>
         </div>
       </div>
@@ -326,11 +326,11 @@ function Column({ status, jobs, sort, setSort, dragging, activeId, filtered }: {
       <div
         ref={setNodeRef}
         className={cn(
-          'flex w-[52px] shrink-0 flex-col items-center rounded-2xl border border-dashed py-4 transition-colors',
+          'flex w-[52px] shrink-0 flex-col items-center border border-dashed py-4 transition-colors',
           isOver ? 'border-transparent bg-accent-soft ring-2 ring-accent/40' : dragging ? 'border-line bg-panel' : 'border-line/80 bg-transparent',
         )}
       >
-        <span className="size-2 rounded-full" style={{ background: meta.color }} />
+        <span className="size-2 " style={{ background: meta.color }} />
         <span className="mt-3 text-[12.5px] font-semibold text-muted [writing-mode:vertical-rl]">{meta.label}</span>
       </div>
     );
@@ -339,7 +339,7 @@ function Column({ status, jobs, sort, setSort, dragging, activeId, filtered }: {
   return (
     <div className="flex w-[296px] shrink-0 flex-col">
       <div className="flex h-9 items-center gap-2 px-1.5">
-        <span className="size-2 rounded-full" style={{ background: meta.color }} />
+        <span className="size-2 " style={{ background: meta.color }} />
         <Tooltip content={meta.hint} side="bottom">
           <span className="text-[13px] font-semibold text-ink">{meta.label}</span>
         </Tooltip>
@@ -349,7 +349,7 @@ function Column({ status, jobs, sort, setSort, dragging, activeId, filtered }: {
           {status === 'discovered' && (
             <Menu>
               <MenuTrigger asChild>
-                <button className="flex h-7 items-center gap-1 rounded-md px-1.5 text-[12px] text-muted hover:bg-ink/5 hover:text-ink">
+                <button className="flex h-7 items-center gap-1 px-1.5 text-[12px] text-muted hover:bg-ink/5 hover:text-ink">
                   <ArrowDownWideNarrow className="size-3.5" />
                   {sort === 'fit' ? 'Best fit' : 'Newest'}
                 </button>
@@ -366,7 +366,7 @@ function Column({ status, jobs, sort, setSort, dragging, activeId, filtered }: {
       </div>
       <div
         ref={setNodeRef}
-        className={cn('relative flex min-h-0 flex-1 flex-col rounded-2xl p-1.5 transition-colors', isOver ? 'bg-accent-soft/60 ring-2 ring-accent/30' : dragging ? 'bg-ink/[0.025] dark:bg-white/[0.02]' : 'bg-transparent')}
+        className={cn('relative flex min-h-0 flex-1 flex-col p-1.5 transition-colors', isOver ? 'bg-accent-soft/60 ring-2 ring-accent/30' : dragging ? 'bg-ink/[0.025] dark:bg-white/[0.02]' : 'bg-transparent')}
       >
         <SortableContext items={jobs.map(j => j.id)} strategy={verticalListSortingStrategy}>
           <div className="-mx-1.5 flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-1.5 pt-0.5 pb-6">
@@ -400,7 +400,7 @@ function RefreshStale({ jobs }: { jobs: Job[] }) {
         onClick={refresh}
         disabled={busy}
         aria-label={`Refresh ${n} with new resume`}
-        className="grid size-7 place-items-center rounded-md text-gold transition-colors hover:bg-gold-soft disabled:opacity-60"
+        className="grid size-7 place-items-center text-gold transition-colors hover:bg-gold-soft disabled:opacity-60"
       >
         <RefreshCw className={cn('size-3.5', busy && 'animate-spin')} />
       </button>
@@ -422,7 +422,7 @@ function CheckReplies() {
         ? `Checked ${timeAgo(gmail.lastCheckAt, false)}: ${gmail.lastResult || 'no new replies'}.`
         : 'Look in your Gmail for replies to these applications.';
   const run = async () => {
-    if (!gmail?.connected) return navigate({ view: 'settings' });
+    if (!gmail?.connected) return navigate({ view: 'settings', section: 'connections' });
     setBusy(true);
     try {
       await api.post('/api/gmail/check');
@@ -435,7 +435,7 @@ function CheckReplies() {
       <button
         onClick={run}
         disabled={checking}
-        className="flex h-7 items-center gap-1.5 rounded-md px-2 text-[12px] font-medium text-muted transition-colors hover:bg-ink/5 hover:text-ink disabled:opacity-70 dark:hover:bg-white/[0.06]"
+        className="flex h-7 items-center gap-1.5 px-2 text-[12px] font-medium text-muted transition-colors hover:bg-ink/5 hover:text-ink disabled:opacity-70 dark:hover:bg-white/[0.06]"
       >
         {checking ? <RefreshCw className="size-3.5 animate-spin" /> : <Mail className="size-3.5" />}
         {checking ? 'Checking…' : 'Check replies'}
@@ -465,7 +465,7 @@ function SortableCard({ job, hidden }: { job: Job; hidden: boolean }) {
             if (e.key === 'Enter') openJob(job.id);
             else listeners?.onKeyDown?.(e as any);
           }}
-          className="cursor-pointer rounded-[14px] outline-none focus-visible:ring-2 focus-visible:ring-accent/50 data-[state=open]:ring-2 data-[state=open]:ring-accent/40"
+          className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent/50 data-[state=open]:ring-2 data-[state=open]:ring-accent/40"
         >
           <JobCard job={job} dragging={hidden} />
         </div>
@@ -481,7 +481,7 @@ function ColumnEmpty({ status, filtered }: { status: JobStatus; filtered: boolea
     needs_input: 'Questions from Hermes and drafts awaiting your approval land here.',
     applied: 'Submitted applications collect here so you can track replies.',
   };
-  return <div className="rounded-[14px] border border-dashed border-line px-4 py-6 text-center text-[12.5px] leading-relaxed text-faint">{text[status] || 'Drop a card here.'}</div>;
+  return <div className="border border-dashed border-line px-4 py-6 text-center text-[12.5px] leading-relaxed text-faint">{text[status] || 'Drop a card here.'}</div>;
 }
 
 function ArchiveZone({ visible }: { visible: boolean }) {
@@ -493,7 +493,7 @@ function ArchiveZone({ visible }: { visible: boolean }) {
           <div
             ref={setNodeRef}
             className={cn(
-              'pointer-events-auto flex h-12 items-center gap-2 rounded-full px-6 text-[13px] font-medium shadow-pop transition-all',
+              'pointer-events-auto flex h-12 items-center gap-2 px-6 text-[13px] font-medium shadow-pop transition-all',
               isOver ? 'scale-105 bg-bad text-white' : 'bg-raised text-muted',
             )}
           >
@@ -552,8 +552,8 @@ function CheckLiveButton() {
   };
   return (
     <Tooltip content={busy ? 'Checking postings…' : 'Check which postings are still open'}>
-      <button onClick={run} disabled={busy} aria-label="Check which postings are still open" className="grid size-9 place-items-center rounded-lg border border-line bg-card text-muted transition-colors hover:text-ink disabled:opacity-70">
-        <Radar className={cn('size-4', busy && 'animate-spin')} />
+      <button onClick={run} disabled={busy} aria-label="Check which postings are still open" className="grid size-9 place-items-center border border-line bg-card text-muted transition-colors hover:text-ink disabled:opacity-70">
+        <ScanSearch className={cn('size-4', busy && 'animate-pulse')} />
       </button>
     </Tooltip>
   );

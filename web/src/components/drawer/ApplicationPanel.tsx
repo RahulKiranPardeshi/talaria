@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertTriangle, ArrowRight, BookmarkCheck, Check, CircleHelp, Download, ExternalLink, FileCode2, FileText, Lightbulb, PenLine, RefreshCw, Send, Sparkles, Wand2 } from 'lucide-react';
+import { AlertTriangle, ArrowRight, BookmarkCheck, Check, Download, ExternalLink, FileCode2, FileText, Lightbulb, PenLine, RefreshCw, Send, Sparkles, SquarePen, Wand2 } from 'lucide-react';
 import type { AgentQuestion, Job } from '@shared/types';
 import { usableSuggestion } from '@shared/suggestion';
 import { jobActions, patchJobLocal, useApp } from '@/lib/store';
@@ -23,7 +23,7 @@ export function ApplicationPanel({ job }: { job: Job }) {
     if (running) return <PreparingState job={job} />;
     if (t?.state === 'error')
       return (
-        <div className="rounded-2xl border border-bad/20 bg-bad-soft/50 p-5">
+        <div className="border border-bad/20 bg-bad-soft/50 p-5">
           <div className="flex items-center gap-2 font-semibold text-bad">
             <AlertTriangle className="size-4" /> Hermes couldn't finish this application
           </div>
@@ -43,7 +43,7 @@ export function ApplicationPanel({ job }: { job: Job }) {
       <AnimatePresence>
         {running && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <div className="agent-sheen flex items-center gap-3 rounded-xl border border-gold/20 bg-gold-soft/60 px-4 py-3 text-[13px] font-medium text-gold">
+            <div className="agent-sheen flex items-center gap-3 border border-gold/20 bg-gold-soft/60 px-4 py-3 text-[13px] font-medium text-gold">
               <Sparkles className="size-4 animate-pulse-soft" />
               {t?.step || 'Updating your application'}…
             </div>
@@ -51,7 +51,7 @@ export function ApplicationPanel({ job }: { job: Job }) {
         )}
       </AnimatePresence>
       {t?.state === 'error' && !running && (
-        <div className="flex items-center gap-2 rounded-xl border border-bad/20 bg-bad-soft/50 px-4 py-3 text-[13px] text-bad">
+        <div className="flex items-center gap-2 border border-bad/20 bg-bad-soft/50 px-4 py-3 text-[13px] text-bad">
           <AlertTriangle className="size-4 shrink-0" />
           <span className="flex-1">The last update failed: {t.error}</span>
           <button className="font-medium underline-offset-2 hover:underline" onClick={() => jobActions.prepare(job.id, { refine: true })}>
@@ -64,16 +64,16 @@ export function ApplicationPanel({ job }: { job: Job }) {
 
       <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr]">
         {cov && cov.after > 0 ? (
-          <div className="rounded-2xl bg-card p-4 shadow-card">
+          <div className="bg-card p-4 shadow-card">
             <div className="flex items-baseline justify-between">
               <span className="text-[12px] font-semibold tracking-[0.06em] text-muted uppercase">ATS keyword match</span>
               <span className="text-[13px] text-muted tabular-nums">
                 {cov.before}% → <span className="font-semibold text-ok">{cov.after}%</span>
               </span>
             </div>
-            <div className="relative mt-3 h-2 overflow-hidden rounded-full bg-line-2">
-              <div className="absolute inset-y-0 left-0 rounded-full bg-ink/15" style={{ width: `${cov.before}%` }} />
-              <motion.div className="absolute inset-y-0 left-0 rounded-full bg-ok" initial={{ width: `${cov.before}%` }} animate={{ width: `${cov.after}%` }} transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.2 }} />
+            <div className="relative mt-3 h-2 overflow-hidden bg-line-2">
+              <div className="absolute inset-y-0 left-0 bg-ink/15" style={{ width: `${cov.before}%` }} />
+              <motion.div className="absolute inset-y-0 left-0 bg-ok" initial={{ width: `${cov.before}%` }} animate={{ width: `${cov.after}%` }} transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.2 }} />
             </div>
             {cov.missing.length > 0 && (
               <>
@@ -84,7 +84,7 @@ export function ApplicationPanel({ job }: { job: Job }) {
                       <span
                         key={k}
                         title={unfit ? "Tried: this doesn't match your experience" : undefined}
-                        className={cn('inline-flex h-6 items-center rounded-md border border-dashed px-2 text-[11.5px]', unfit ? 'border-transparent text-faint line-through decoration-faint/60' : 'border-line text-muted')}
+                        className={cn('inline-flex h-6 items-center border border-dashed px-2 text-[11.5px]', unfit ? 'border-transparent text-faint line-through decoration-faint/60' : 'border-line text-muted')}
                       >
                         {k}
                       </span>
@@ -116,7 +116,7 @@ export function ApplicationPanel({ job }: { job: Job }) {
         ) : (
           <div />
         )}
-        <div className="flex flex-col justify-between rounded-2xl bg-card p-4 shadow-card">
+        <div className="flex flex-col justify-between bg-card p-4 shadow-card">
           <span className="text-[12px] font-semibold tracking-[0.06em] text-muted uppercase">Status</span>
           <div className="mt-2 flex items-center gap-2 text-[13.5px] font-medium">
             {p.approvedAt ? (
@@ -125,7 +125,7 @@ export function ApplicationPanel({ job }: { job: Job }) {
               </>
             ) : pendingQuestions(job) > 0 ? (
               <>
-                <CircleHelp className="size-4 text-warn" /> Waiting on your answers
+                <SquarePen className="size-4 text-warn" /> Waiting on your answers
               </>
             ) : (
               <>
@@ -196,7 +196,7 @@ export function ApplicationPanel({ job }: { job: Job }) {
               <div className="space-y-2.5">
                 {p.changes.length === 0 && <p className="text-[13px] text-muted">No notes on changes for this draft.</p>}
                 {p.changes.map((c, i) => (
-                  <div key={i} className="flex gap-3 rounded-xl bg-card p-4 shadow-card">
+                  <div key={i} className="flex gap-3 bg-card p-4 shadow-card">
                     <Lightbulb className="mt-0.5 size-4 shrink-0 text-gold" />
                     <div>
                       <div className="text-[13.5px] font-medium text-ink">{c.what}</div>
@@ -230,7 +230,7 @@ function PrepareCta({ job }: { job: Job }) {
     ['Asks before anything goes out', 'Sponsorship, salary, start date — Hermes checks with you and remembers your answers.'],
   ];
   return (
-    <div className="overflow-hidden rounded-2xl bg-card shadow-card">
+    <div className="overflow-hidden bg-card shadow-card">
       <div className="border-b border-line-2 p-6">
         <div className="flex items-center gap-2 text-[12px] font-semibold tracking-[0.08em] text-gold uppercase">
           <Sparkles className="size-3.5" /> Hermes can take it from here
@@ -240,7 +240,7 @@ function PrepareCta({ job }: { job: Job }) {
       <div className="grid gap-x-6 gap-y-4 p-6 sm:grid-cols-2">
         {items.map(([t, d], i) => (
           <div key={i} className="flex gap-3">
-            <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-lg bg-accent-soft text-[12px] font-semibold text-accent">{i + 1}</span>
+            <span className="mt-0.5 grid size-6 shrink-0 place-items-center bg-accent-soft text-[12px] font-semibold text-accent">{i + 1}</span>
             <div>
               <div className="text-[13.5px] font-semibold text-ink">{t}</div>
               <div className="mt-0.5 text-[12.5px] leading-relaxed text-muted">{d}</div>
@@ -268,9 +268,9 @@ function PreparingState({ job }: { job: Job }) {
   const startedAt = job.timeline.slice().reverse().find(e => e.text.startsWith('Hermes started'))?.at;
   const elapsed = useElapsed(startedAt, true);
   return (
-    <div className="overflow-hidden rounded-2xl bg-card shadow-card">
+    <div className="overflow-hidden bg-card shadow-card">
       <div className="agent-sheen flex items-center gap-4 border-b border-gold/15 bg-gold-soft/50 p-5">
-        <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-card shadow-card">
+        <div className="grid size-11 shrink-0 place-items-center bg-card shadow-card">
           <Sparkles className="size-5 animate-pulse-soft text-gold" />
         </div>
         <div className="flex-1">
@@ -284,9 +284,9 @@ function PreparingState({ job }: { job: Job }) {
           const done = i < idx;
           const current = i === idx;
           return (
-            <li key={s} className={cn('flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px]', current && 'bg-gold-soft/40')}>
-              <span className={cn('grid size-6 place-items-center rounded-full border', done ? 'border-ok bg-ok text-white' : current ? 'border-gold text-gold' : 'border-line text-faint')}>
-                {done ? <Check className="size-3.5" strokeWidth={3} /> : current ? <span className="size-2 animate-pulse rounded-full bg-gold" /> : <span className="text-[11px]">{i + 1}</span>}
+            <li key={s} className={cn('flex items-center gap-3 px-3 py-2.5 text-[13.5px]', current && 'bg-gold-soft/40')}>
+              <span className={cn('grid size-6 place-items-center border', done ? 'border-ok bg-ok text-white' : current ? 'border-gold text-gold' : 'border-line text-faint')}>
+                {done ? <Check className="size-3.5" strokeWidth={3} /> : current ? <span className="size-2 animate-pulse bg-gold" /> : <span className="text-[11px]">{i + 1}</span>}
               </span>
               <span className={cn(done ? 'text-muted line-through decoration-faint' : current ? 'font-medium text-ink' : 'text-faint')}>{s}</span>
             </li>
@@ -326,8 +326,8 @@ function QuestionsForm({ job }: { job: Job }) {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="flex w-full items-center gap-3 rounded-2xl bg-card px-4 py-3.5 text-left shadow-card transition-shadow hover:shadow-lift">
-        <span className="grid size-8 place-items-center rounded-lg bg-ok-soft text-ok">
+      <button onClick={() => setOpen(true)} className="flex w-full items-center gap-3 bg-card px-4 py-3.5 text-left shadow-card transition-shadow hover:shadow-lift">
+        <span className="grid size-8 place-items-center bg-ok-soft text-ok">
           <Check className="size-4" />
         </span>
         <div className="flex-1">
@@ -340,9 +340,9 @@ function QuestionsForm({ job }: { job: Job }) {
   }
 
   return (
-    <motion.section initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden rounded-2xl border border-warn/25 bg-card shadow-card">
+    <motion.section initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden border border-warn/25 bg-card shadow-card">
       <div className="flex items-start gap-3 border-b border-warn/15 bg-warn-soft/60 px-5 py-4">
-        <CircleHelp className="mt-0.5 size-5 shrink-0 text-warn" />
+        <SquarePen className="mt-0.5 size-5 shrink-0 text-warn" />
         <div>
           <div className="text-[15px] font-semibold text-ink">{pending > 0 ? `Hermes needs ${pending} answer${pending > 1 ? 's' : ''} before you submit` : 'Your answers'}</div>
           <div className="mt-0.5 text-[12.5px] text-muted">Answers are remembered, so you won't be asked the same thing twice.</div>
@@ -397,7 +397,7 @@ export function QuestionField({ q, value, onChange, remember, onRemember }: { q:
         {q.kind === 'yesno' ? (
           <div className="flex gap-2">
             {['Yes', 'No'].map(o => (
-              <button key={o} type="button" onClick={() => onChange(o)} className={cn('h-9 rounded-lg border px-5 text-[13px] font-medium transition-colors', value === o ? 'border-ink bg-ink text-bg' : 'border-line bg-card text-ink-2 hover:border-ink/30')}>
+              <button key={o} type="button" onClick={() => onChange(o)} className={cn('h-9 border px-5 text-[13px] font-medium transition-colors', value === o ? 'border-ink bg-ink text-bg' : 'border-line bg-card text-ink-2 hover:border-ink/30')}>
                 {o}
               </button>
             ))}
@@ -405,7 +405,7 @@ export function QuestionField({ q, value, onChange, remember, onRemember }: { q:
         ) : q.kind === 'choice' && q.options?.length ? (
           <div className="flex flex-wrap gap-2">
             {q.options.map(o => (
-              <button key={o} type="button" onClick={() => onChange(o)} className={cn('min-h-9 rounded-lg border px-3.5 py-1.5 text-left text-[13px] font-medium transition-colors', value === o ? 'border-ink bg-ink text-bg' : 'border-line bg-card text-ink-2 hover:border-ink/30')}>
+              <button key={o} type="button" onClick={() => onChange(o)} className={cn('min-h-9 border px-3.5 py-1.5 text-left text-[13px] font-medium transition-colors', value === o ? 'border-ink bg-ink text-bg' : 'border-line bg-card text-ink-2 hover:border-ink/30')}>
                 {o}
               </button>
             ))}
@@ -419,7 +419,7 @@ export function QuestionField({ q, value, onChange, remember, onRemember }: { q:
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
         {suggestion && value !== suggestion && (
           <div className="w-full">
-            <p className="whitespace-pre-wrap rounded-lg bg-accent/5 px-3 py-2 text-[13px] leading-relaxed text-ink-2">{suggestion}</p>
+            <p className="whitespace-pre-wrap bg-accent/5 px-3 py-2 text-[13px] leading-relaxed text-ink-2">{suggestion}</p>
             <button type="button" onClick={() => onChange(suggestion)} className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-accent hover:underline">
               <Wand2 className="size-3" /> Use Hermes's suggestion
             </button>
@@ -457,7 +457,7 @@ export function CoverLetter({ job }: { job: Job }) {
     }
   };
   return (
-    <div className="rounded-2xl bg-white p-2 shadow-card dark:bg-card">
+    <div className="bg-white p-2 shadow-card dark:bg-card">
       <AutoTextarea value={text} onChange={setText} onBlur={save} className="border-transparent bg-transparent px-6 py-5 font-sans text-[14.5px] leading-[1.75] text-ink shadow-none focus:ring-0 dark:bg-transparent" />
       <div className="flex items-center justify-between px-6 pb-3 text-[11.5px] text-faint">
         <span>Click to edit · saves automatically</span>
@@ -479,7 +479,7 @@ export function FormAnswers({ job }: { job: Job }) {
   return (
     <div className="space-y-3">
       {items.map((a, i) => (
-        <div key={i} className="rounded-2xl bg-card p-4 shadow-card">
+        <div key={i} className="bg-card p-4 shadow-card">
           <div className="mb-2 flex items-start justify-between gap-3">
             <div className="flex items-start gap-2 text-[13.5px] font-semibold text-ink">
               <FileText className="mt-0.5 size-4 shrink-0 text-faint" />
@@ -509,7 +509,7 @@ function ReviseBox({ job, disabled }: { job: Job; disabled: boolean }) {
     toast('Hermes is revising your application', { icon: <Sparkles className="size-4 text-gold" /> });
   };
   return (
-    <section className="rounded-2xl border border-dashed border-line p-4">
+    <section className="border border-dashed border-line p-4">
       <SectionTitle className="mb-2.5">Ask Hermes to revise</SectionTitle>
       <form
         onSubmit={e => {
@@ -525,7 +525,7 @@ function ReviseBox({ job, disabled }: { job: Job; disabled: boolean }) {
       </form>
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         {ideas.map(i => (
-          <button key={i} disabled={disabled} onClick={() => go(i)} className="h-7 rounded-lg bg-ink/[0.04] px-2.5 text-[12px] text-muted transition-colors hover:bg-ink/[0.07] hover:text-ink disabled:opacity-50 dark:bg-white/[0.05]">
+          <button key={i} disabled={disabled} onClick={() => go(i)} className="h-7 bg-ink/[0.04] px-2.5 text-[12px] text-muted transition-colors hover:bg-ink/[0.07] hover:text-ink disabled:opacity-50 dark:bg-white/[0.05]">
             {i}
           </button>
         ))}
@@ -541,7 +541,7 @@ export function LatexPreview({ job }: { job: Job }) {
   // Bust the browser cache whenever the draft changes.
   const src = `/api/jobs/${job.id}/resume.pdf?v=${encodeURIComponent(p.generatedAt)}#toolbar=0&navpanes=0&view=FitH`;
   return (
-    <div className="overflow-hidden rounded-2xl bg-[#e9e7e1] p-3 dark:bg-[#0a0a0c]">
+    <div className="overflow-hidden bg-[#e9e7e1] p-3 dark:bg-[#0a0a0c]">
       {p.latexError && (
         <Notice>
           Hermes's tailored wording wouldn't compile, so this PDF is your original resume text in your own template. Hit “Regenerate” to try the tailoring again.
@@ -553,13 +553,13 @@ export function LatexPreview({ job }: { job: Job }) {
         </span>
         <span>{p.latexPages === 1 ? 'Fits on one page' : `${p.latexPages} pages`}</span>
       </div>
-      <iframe title="Tailored resume PDF" src={src} className="h-[880px] w-full rounded-[4px] bg-white shadow-[0_2px_8px_rgb(0_0_0/0.08)]" />
+      <iframe title="Tailored resume PDF" src={src} className="h-[880px] w-full bg-white shadow-[0_2px_8px_rgb(0_0_0/0.08)]" />
     </div>
   );
 }
 
 export function Notice({ children, tone = 'info' }: { children: React.ReactNode; tone?: 'info' | 'bad' }) {
-  return <div className={cn('mb-3 rounded-xl px-4 py-3 text-[12.5px] leading-relaxed', tone === 'bad' ? 'bg-bad-soft/60 text-bad' : 'bg-info-soft text-info')}>{children}</div>;
+  return <div className={cn('mb-3 px-4 py-3 text-[12.5px] leading-relaxed', tone === 'bad' ? 'bg-bad-soft/60 text-bad' : 'bg-info-soft text-info')}>{children}</div>;
 }
 
 export function openInOverleaf(tex: string, name: string) {

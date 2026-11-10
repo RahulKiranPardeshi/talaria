@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { motion } from 'motion/react';
-import { AlertTriangle, ArrowUpRight, Check, CircleDashed, MessageSquarePlus, Minus, RefreshCw, Sparkles, ThumbsDown, ThumbsUp, Wand2, X } from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, Check, MessageSquarePlus, Minus, RefreshCw, Sparkles, SquareDashed, ThumbsDown, ThumbsUp, Wand2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import type { Job } from '@shared/types';
@@ -19,7 +19,7 @@ export function FitPanel({ job }: { job: Job }) {
   if (!a) {
     if (state === 'error')
       return (
-        <div className="rounded-2xl border border-bad/20 bg-bad-soft/50 p-5">
+        <div className="border border-bad/20 bg-bad-soft/50 p-5">
           <div className="flex items-center gap-2 font-semibold text-bad">
             <AlertTriangle className="size-4" /> Hermes couldn't finish the analysis
           </div>
@@ -37,7 +37,7 @@ export function FitPanel({ job }: { job: Job }) {
 
   return (
     <div className="space-y-7">
-      <section className="relative overflow-hidden rounded-2xl bg-card p-5 shadow-card">
+      <section className="relative overflow-hidden bg-card p-5 shadow-card">
         <div className="absolute inset-y-0 left-0 w-1" style={{ background: tone.fg }} />
         <div className="flex items-start gap-5">
           <ScoreRing score={a.score} size={76} stroke={6} />
@@ -45,7 +45,7 @@ export function FitPanel({ job }: { job: Job }) {
             <div className="flex items-center justify-between gap-3">
               <div className="font-display text-[21px] leading-tight text-ink">{a.verdict}</div>
               <Tooltip content="Re-run analysis">
-                <button onClick={() => jobActions.analyze(job.id, true)} disabled={running} className="rounded-lg p-1.5 text-faint transition-colors hover:bg-ink/5 hover:text-ink disabled:opacity-40">
+                <button onClick={() => jobActions.analyze(job.id, true)} disabled={running} className="p-1.5 text-faint transition-colors hover:bg-ink/5 hover:text-ink disabled:opacity-40">
                   <RefreshCw className={cn('size-4', running && 'animate-spin')} />
                 </button>
               </Tooltip>
@@ -62,10 +62,10 @@ export function FitPanel({ job }: { job: Job }) {
       {a.mustHaves.length > 0 && (
         <section>
           <SectionTitle>Requirements check</SectionTitle>
-          <div className="divide-y divide-line-2 overflow-hidden rounded-2xl bg-card shadow-card">
+          <div className="divide-y divide-line-2 overflow-hidden bg-card shadow-card">
             {a.mustHaves.map((m, i) => (
               <motion.div key={i} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }} className="flex items-start gap-3 px-4 py-3">
-                <span className={cn('mt-0.5 grid size-5 shrink-0 place-items-center rounded-full', m.met === 'yes' ? 'bg-ok-soft text-ok' : m.met === 'partial' ? 'bg-gold-soft text-gold' : 'bg-bad-soft text-bad')}>
+                <span className={cn('mt-0.5 grid size-5 shrink-0 place-items-center ', m.met === 'yes' ? 'bg-ok-soft text-ok' : m.met === 'partial' ? 'bg-gold-soft text-gold' : 'bg-bad-soft text-bad')}>
                   {m.met === 'yes' ? <Check className="size-3" strokeWidth={3} /> : m.met === 'partial' ? <Minus className="size-3" strokeWidth={3} /> : <X className="size-3" strokeWidth={3} />}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -87,7 +87,7 @@ export function FitPanel({ job }: { job: Job }) {
           </SectionTitle>
           <div className="space-y-2.5">
             {a.whyYes.map((x, i) => (
-              <div key={i} className="rounded-xl border border-ok/15 bg-ok-soft/40 p-3.5">
+              <div key={i} className="border border-ok/15 bg-ok-soft/40 p-3.5">
                 <div className="text-[13.5px] leading-snug font-medium text-ink">{x.point}</div>
                 {x.evidence && <div className="mt-1.5 text-[12.5px] leading-snug text-muted">↳ {x.evidence}</div>}
               </div>
@@ -115,8 +115,8 @@ export function FitPanel({ job }: { job: Job }) {
           <SectionTitle>How to make your odds better</SectionTitle>
           <ol className="space-y-2.5">
             {a.improve.map((x, i) => (
-              <li key={i} className="flex gap-3.5 rounded-xl bg-card p-4 shadow-card">
-                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-accent-soft font-display text-[14px] text-accent">{i + 1}</span>
+              <li key={i} className="flex gap-3.5 bg-card p-4 shadow-card">
+                <span className="grid size-7 shrink-0 place-items-center bg-accent-soft font-display text-[14px] text-accent">{i + 1}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="text-[13.5px] leading-snug font-semibold text-ink">{x.action}</div>
@@ -142,10 +142,10 @@ export function FitPanel({ job }: { job: Job }) {
               return (
                 <span
                   key={k}
-                  className={cn('inline-flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-[12.5px] font-medium', has ? 'bg-ok-soft text-ok' : 'border border-dashed border-line text-muted')}
+                  className={cn('inline-flex h-7 items-center gap-1.5 px-2.5 text-[12.5px] font-medium', has ? 'bg-ok-soft text-ok' : 'border border-dashed border-line text-muted')}
                   title={has ? 'On your resume' : 'Not on your resume yet'}
                 >
-                  {has ? <Check className="size-3" strokeWidth={3} /> : <CircleDashed className="size-3" />}
+                  {has ? <Check className="size-3" strokeWidth={3} /> : <SquareDashed className="size-3" />}
                   {k}
                 </span>
               );
@@ -156,7 +156,7 @@ export function FitPanel({ job }: { job: Job }) {
       )}
 
       {job.status === 'discovered' && (
-        <section className="flex items-center justify-between gap-4 rounded-2xl bg-ink p-5 text-bg">
+        <section className="flex items-center justify-between gap-4 bg-ink p-5 text-bg">
           <div>
             <div className="font-display text-[17px] leading-tight">Worth a shot?</div>
             <p className="mt-1 text-[13px] text-bg/65">Hermes will tailor your resume, write the cover letter and ask you anything it needs.</p>
@@ -182,8 +182,8 @@ function AnalyzingState({ job, running }: { job: Job; running: boolean }) {
   const idx = Math.min(lines.length - 1, Math.floor(elapsed / 6));
   return (
     <div className="space-y-5">
-      <div className="agent-sheen flex items-center gap-4 rounded-2xl border border-gold/20 bg-gold-soft/50 p-5">
-        <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-card shadow-card">
+      <div className="agent-sheen flex items-center gap-4 border border-gold/20 bg-gold-soft/50 p-5">
+        <div className="grid size-11 shrink-0 place-items-center bg-card shadow-card">
           <Sparkles className="size-5 animate-pulse-soft text-gold" />
         </div>
         <div className="min-w-0 flex-1">
@@ -227,7 +227,7 @@ function GapCard({ job, point, severity, detail }: { job: Job; point: string; se
   };
 
   return (
-    <div className={cn('rounded-xl border p-3.5 transition-colors', note ? 'border-accent/20 bg-card' : 'border-bad/15 bg-bad-soft/40')}>
+    <div className={cn('border p-3.5 transition-colors', note ? 'border-accent/20 bg-card' : 'border-bad/15 bg-bad-soft/40')}>
       <div className="flex items-start justify-between gap-2">
         <div className={cn('text-[13.5px] leading-snug font-medium', note ? 'text-ink-2' : 'text-ink')}>{point}</div>
         {note ? (
@@ -276,12 +276,12 @@ function GapCard({ job, point, severity, detail }: { job: Job; point: string; se
           </div>
         </div>
       ) : note ? (
-        <button onClick={() => setEditing(true)} className="mt-3 block w-full rounded-lg border-l-2 border-accent bg-accent-soft/50 px-3 py-2 text-left transition-colors hover:bg-accent-soft">
+        <button onClick={() => setEditing(true)} className="mt-3 block w-full border-l-2 border-accent bg-accent-soft/50 px-3 py-2 text-left transition-colors hover:bg-accent-soft">
           <div className="text-[11px] font-semibold tracking-wide text-accent uppercase">Your note</div>
           <div className="mt-0.5 text-[12.5px] leading-relaxed text-ink-2">{note.response}</div>
         </button>
       ) : (
-        <button onClick={() => setEditing(true)} className="mt-2.5 inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 -ml-1.5 text-[12px] font-medium text-accent transition-colors hover:bg-accent-soft">
+        <button onClick={() => setEditing(true)} className="mt-2.5 inline-flex items-center gap-1.5 px-1.5 py-1 -ml-1.5 text-[12px] font-medium text-accent transition-colors hover:bg-accent-soft">
           <MessageSquarePlus className="size-3.5" /> I have done this — explain
         </button>
       )}
@@ -295,7 +295,7 @@ function GapNotesFooter({ job, points }: { job: Job; points: string[] }) {
   const busy = ['running', 'queued'].includes(job.work.tailor?.state || '') || ['running', 'queued'].includes(job.work.analyze?.state || '');
   if (!notes.length) return null;
   return (
-    <section className="rounded-2xl border border-accent/20 bg-accent-soft/40 p-4">
+    <section className="border border-accent/20 bg-accent-soft/40 p-4">
       {earlier.length > 0 && (
         <div className="mb-3 space-y-1.5">
           <div className="text-[11px] font-semibold tracking-wide text-accent uppercase">Earlier notes (Hermes now treats these as covered)</div>
