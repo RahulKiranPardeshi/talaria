@@ -1,12 +1,13 @@
 import * as React from 'react';
 import { Command } from 'cmdk';
 import * as RDialog from '@radix-ui/react-dialog';
-import { Activity, BarChart3, KanbanSquare, Moon, Plus, Search, Settings2, Sparkles, UserRound } from 'lucide-react';
+import { Activity, BarChart3, KanbanSquare, Moon, Plug, Plus, Search, Settings2, Sparkles, Target, UserRound } from 'lucide-react';
 import { startScout, useApp } from '@/lib/store';
 import { navigate, openJob } from '@/lib/router';
 import { fitScore, STATUS_META } from '@/lib/utils';
 import { CompanyLogo } from './brand';
 import { setThemePref, useTheme } from '@/lib/theme';
+import { openActivity } from '@/views/Activity';
 
 let setOpenGlobal: ((v: boolean) => void) | null = null;
 export const openPalette = () => setOpenGlobal?.(true);
@@ -63,13 +64,19 @@ export function CommandPalette() {
                   <BarChart3 className="size-4 text-muted" /> Applications summary
                 </Command.Item>
                 <Command.Item className={item} onSelect={() => run(() => navigate({ view: 'profile' }))}>
-                  <UserRound className="size-4 text-muted" /> Profile & preferences
+                  <UserRound className="size-4 text-muted" /> Profile
                 </Command.Item>
-                <Command.Item className={item} onSelect={() => run(() => navigate({ view: 'activity' }))}>
+                <Command.Item className={item} keywords={['preferences', 'roles', 'sources', 'boards', 'companies']} onSelect={() => run(() => navigate({ view: 'search' }))}>
+                  <Target className="size-4 text-muted" /> Job search: what you want and where to look
+                </Command.Item>
+                <Command.Item className={item} keywords={['hermes', 'tasks', 'running', 'tokens', 'log']} onSelect={() => run(openActivity)}>
                   <Activity className="size-4 text-muted" /> Agent activity
                 </Command.Item>
                 <Command.Item className={item} onSelect={() => run(() => navigate({ view: 'settings' }))}>
                   <Settings2 className="size-4 text-muted" /> Settings
+                </Command.Item>
+                <Command.Item className={item} keywords={['linkedin', 'gmail', 'voice', 'mcp']} onSelect={() => run(() => navigate({ view: 'settings', section: 'connections' }))}>
+                  <Plug className="size-4 text-muted" /> Connections: LinkedIn, Gmail, voice
                 </Command.Item>
                 <Command.Item className={item} onSelect={() => run(() => setThemePref(theme === 'dark' ? 'light' : 'dark'))}>
                   <Moon className="size-4 text-muted" /> Toggle dark mode

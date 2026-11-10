@@ -38,7 +38,7 @@ export function SummaryView() {
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-7 pb-12">
-        <div className="max-w-[1180px] space-y-6">
+        <div className="space-y-6">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <Kpi label="Applied" value={applied.length} sub={thisWeek ? `+${thisWeek} this week` : 'none this week'} accent />
             <Kpi label="Heard back" value={applied.length ? `${Math.round((100 * responded) / applied.length)}%` : '—'} sub={`${responded} of ${applied.length}`} />

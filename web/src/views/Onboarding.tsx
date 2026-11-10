@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { Button, ChipInput, Field, Input, Segmented, Switch, Textarea } from '@/components/ui';
 import { Logo } from '@/components/brand';
 import { useElapsed } from '@/components/drawer/hooks';
-import { BOARDS, SourcesEditor } from '@/views/Profile';
+import { BOARDS, SourcesEditor } from '@/views/JobSearch';
 import { ConnectStep, FooterSlot, NextButton, SkipLink, StepFooter, StepHeader, WelcomeStep } from '@/views/OnboardingSetup';
 import { ModelSelect } from '@/views/Settings';
 
@@ -512,7 +512,7 @@ const SENIORITY: { value: Seniority; label: string }[] = [
 
 type PrefsProps = { prefs: Preferences; onChange: (p: Partial<Preferences>) => void };
 
-function RolesFields({ prefs, onChange }: PrefsProps) {
+export function RolesFields({ prefs, onChange }: PrefsProps) {
   return (
     <>
       <Field label="Roles you're targeting" hint="Hermes suggests these from your resume. Edit freely; press Enter to add.">
@@ -539,7 +539,7 @@ function RolesFields({ prefs, onChange }: PrefsProps) {
   );
 }
 
-function WhereFields({ prefs, onChange }: PrefsProps) {
+export function WhereFields({ prefs, onChange, hideSponsorship }: PrefsProps & { hideSponsorship?: boolean }) {
   return (
     <>
       <div className="grid gap-5 sm:grid-cols-2">
@@ -561,6 +561,7 @@ function WhereFields({ prefs, onChange }: PrefsProps) {
         </Field>
       </div>
       <div className="grid gap-5 sm:grid-cols-2">
+        {!hideSponsorship && (
         <Field label="Need visa sponsorship?">
           <Segmented
             value={prefs.needsSponsorship == null ? 'skip' : prefs.needsSponsorship ? 'yes' : 'no'}
@@ -573,6 +574,7 @@ function WhereFields({ prefs, onChange }: PrefsProps) {
             ]}
           />
         </Field>
+        )}
         <Field label="Minimum salary (optional)">
           <div className="flex gap-2">
             <Input type="number" min={0} value={prefs.minSalary ?? ''} onChange={e => onChange({ minSalary: e.target.value ? Number(e.target.value) : null })} placeholder="e.g. 60000" />
@@ -611,7 +613,7 @@ const WORK_KINDS: { value: WorkKind; label: string; desc: string }[] = [
  * Picking the kinds of work also sets what they imply: internships are a seniority level, and
  * PhD positions have their own search.
  */
-function withKinds(prefs: Preferences, kinds: WorkKind[]): Partial<Preferences> {
+export function withKinds(prefs: Preferences, kinds: WorkKind[]): Partial<Preferences> {
   let seniority: Seniority[] = prefs.seniority.filter(s => s !== 'intern');
   if (kinds.includes('full_time') && !seniority.length) seniority = ['entry', 'mid'];
   if (!kinds.includes('full_time')) seniority = [];
@@ -620,7 +622,7 @@ function withKinds(prefs: Preferences, kinds: WorkKind[]): Partial<Preferences> 
   return { lookingFor: kinds, seniority: seniority.length ? seniority : prefs.seniority, phd: { ...phd, enabled: kinds.includes('phd') } };
 }
 
-function WorkKindFields({ prefs, onChange, cards }: PrefsProps & { cards?: boolean }) {
+export function WorkKindFields({ prefs, onChange, cards }: PrefsProps & { cards?: boolean }) {
   const kinds = prefs.lookingFor?.length ? prefs.lookingFor : (['full_time'] as WorkKind[]);
   const toggle = (k: WorkKind) => onChange(withKinds(prefs, kinds.includes(k) ? kinds.filter(x => x !== k) : [...kinds, k]));
   if (!cards)
@@ -658,18 +660,6 @@ function WorkKindFields({ prefs, onChange, cards }: PrefsProps & { cards?: boole
           </button>
         );
       })}
-    </div>
-  );
-}
-
-/** All job preferences on one page, for the Profile screen. */
-export function PreferencesForm(props: PrefsProps) {
-  return (
-    <div className="space-y-5">
-      <WorkKindFields {...props} />
-      <RolesFields {...props} />
-      <WhereFields {...props} />
-      <TopicsFields {...props} />
     </div>
   );
 }

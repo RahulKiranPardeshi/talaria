@@ -422,7 +422,7 @@ function CheckReplies() {
         ? `Checked ${timeAgo(gmail.lastCheckAt, false)}: ${gmail.lastResult || 'no new replies'}.`
         : 'Look in your Gmail for replies to these applications.';
   const run = async () => {
-    if (!gmail?.connected) return navigate({ view: 'settings' });
+    if (!gmail?.connected) return navigate({ view: 'settings', section: 'connections' });
     setBusy(true);
     try {
       await api.post('/api/gmail/check');

@@ -1,11 +1,11 @@
 import * as React from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertCircle, Check, ChevronRight, FileSearch, Globe, Loader2, Mail, MessagesSquare, PenLine, Radar, ScrollText, Sparkles, Stethoscope, UserRound } from 'lucide-react';
+import { AlertCircle, Check, ChevronRight, FileSearch, Globe, Loader2, Mail, MessagesSquare, PenLine, Radar, ScrollText, Sparkles, Stethoscope, UserRound, X } from 'lucide-react';
 import type { AgentRun, RunKind } from '@shared/types';
 import { useApp } from '@/lib/store';
 import { openJob } from '@/lib/router';
 import { cn, fmtDuration, timeAgo } from '@/lib/utils';
-import { Card, EmptyState, Segmented } from '@/components/ui';
+import { Card, EmptyState, IconButton, Segmented, Sheet } from '@/components/ui';
 
 const KIND: Record<RunKind, { icon: React.ElementType; label: string }> = {
   profile: { icon: UserRound, label: 'Profile' },
@@ -21,9 +21,32 @@ const KIND: Record<RunKind, { icon: React.ElementType; label: string }> = {
   mail: { icon: Mail, label: 'Gmail' },
 };
 
-export function ActivityView() {
+let setOpenGlobal: ((v: boolean) => void) | null = null;
+/** Open the agent activity panel from anywhere: the Hermes card in the sidebar, Ctrl+K, a link. */
+export const openActivity = () => setOpenGlobal?.(true);
+
+/**
+ * What Hermes is doing and has done, as a panel that slides in over whatever you're looking at.
+ * You glance at it and close it; it's not a place you work in, so it has no spot in the main menu.
+ */
+export function ActivityPanel() {
+  const [open, setOpen] = React.useState(false);
+  React.useEffect(() => {
+    setOpenGlobal = setOpen;
+    return () => {
+      setOpenGlobal = null;
+    };
+  }, []);
+  return (
+    <Sheet open={open} onOpenChange={setOpen} label="Agent activity" className="w-[min(640px,calc(100vw-16px))]">
+      <ActivityContent onClose={() => setOpen(false)} />
+    </Sheet>
+  );
+}
+
+function ActivityContent({ onClose }: { onClose: () => void }) {
   const runs = useApp(s => s.runs);
-  const [filter, setFilter] = React.useState<'all' | 'running' | 'errors'>('all');
+  const [filter, setFilter] = React.useState<'all' | 'running' | 'errors'>(() => (runs.some(r => r.status === 'running' || r.status === 'queued') ? 'running' : 'all'));
   const shown = runs.filter(r => (filter === 'running' ? r.status === 'running' || r.status === 'queued' : filter === 'errors' ? r.status === 'error' : true));
 
   const today = new Date();
@@ -48,63 +71,68 @@ export function ActivityView() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="px-7 pt-6 pb-5">
-        <h1 className="font-display text-[27px] leading-none tracking-[-0.015em] text-ink">Agent activity</h1>
-        <p className="mt-2 text-[13.5px] text-muted">Every task Hermes has run for you — what it did, how long it took, and what it cost in tokens.</p>
-        <div className="mt-5 grid max-w-[860px] grid-cols-2 gap-3 sm:grid-cols-4">
+      <header className="px-6 pt-5 pb-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-display text-[24px] leading-none tracking-[-0.015em] text-ink">Agent activity</h2>
+            <p className="mt-2 text-[13px] text-muted">Every task Hermes has run for you: what it did, how long it took, and what it cost in tokens.</p>
+          </div>
+          <IconButton label="Close" onClick={onClose}>
+            <X className="size-4" />
+          </IconButton>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           {[
             ['Running now', active, active ? 'var(--gold)' : undefined],
             ['Tasks today', todays.length],
             ['Tokens today', tokens ? `${(tokens / 1000).toFixed(tokens > 10000 ? 0 : 1)}k` : '0'],
             ['Avg. task time', avg ? fmtDuration(avg) : '—'],
           ].map(([l, v, c]) => (
-            <Card key={l as string} className="p-3.5">
-              <div className="text-[11.5px] font-semibold tracking-[0.05em] text-muted uppercase">{l}</div>
-              <div className="mt-1 font-display text-[23px] leading-none text-ink tabular-nums" style={c ? { color: c as string } : undefined}>
+            <Card key={l as string} className="p-3">
+              <div className="text-[11px] font-semibold tracking-[0.05em] text-muted uppercase">{l}</div>
+              <div className="mt-1 font-display text-[21px] leading-none text-ink tabular-nums" style={c ? { color: c as string } : undefined}>
                 {v}
               </div>
             </Card>
           ))}
         </div>
+        <Segmented
+          className="mt-4"
+          size="sm"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: 'all', label: 'All' },
+            { value: 'running', label: active ? `Running (${active})` : 'Running' },
+            { value: 'errors', label: 'Errors' },
+          ]}
+        />
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto px-7 pb-12">
-        <div className="max-w-[860px]">
-          <Segmented
-            className="mb-5"
-            size="sm"
-            value={filter}
-            onChange={setFilter}
-            options={[
-              { value: 'all', label: 'All' },
-              { value: 'running', label: 'Running' },
-              { value: 'errors', label: 'Errors' },
-            ]}
-          />
-          {groups.length === 0 ? (
-            <Card>
-              <EmptyState icon={<Sparkles className="size-5" />} title="Quiet in here">
-                {filter === 'all' ? 'When Hermes scouts, analyzes or writes, each task shows up here live.' : 'Nothing matches this filter.'}
-              </EmptyState>
-            </Card>
-          ) : (
-            groups.map(g => (
-              <section key={g.label} className="mb-6">
-                <div className="mb-2 text-[12px] font-semibold tracking-[0.06em] text-muted uppercase">{g.label}</div>
-                <Card className="divide-y divide-line-2 overflow-hidden">
-                  {g.runs.map(r => (
-                    <RunRow key={r.id} run={r} />
-                  ))}
-                </Card>
-              </section>
-            ))
-          )}
-        </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8">
+        {groups.length === 0 ? (
+          <Card>
+            <EmptyState icon={<Sparkles className="size-5" />} title={filter === 'running' ? 'Nothing running' : 'Quiet in here'}>
+              {filter === 'all' ? 'When Hermes scouts, analyzes or writes, each task shows up here live.' : filter === 'running' ? 'Hermes is idle right now.' : 'Nothing matches this filter.'}
+            </EmptyState>
+          </Card>
+        ) : (
+          groups.map(g => (
+            <section key={g.label} className="mb-6">
+              <div className="mb-2 text-[12px] font-semibold tracking-[0.06em] text-muted uppercase">{g.label}</div>
+              <Card className="divide-y divide-line-2 overflow-hidden">
+                {g.runs.map(r => (
+                  <RunRow key={r.id} run={r} onOpenJob={onClose} />
+                ))}
+              </Card>
+            </section>
+          ))
+        )}
       </div>
     </div>
   );
 }
 
-function RunRow({ run }: { run: AgentRun }) {
+function RunRow({ run, onOpenJob }: { run: AgentRun; onOpenJob: () => void }) {
   const [open, setOpen] = React.useState(false);
   const k = KIND[run.kind] || KIND.test;
   const Icon = k.icon;
@@ -144,7 +172,7 @@ function RunRow({ run }: { run: AgentRun }) {
                 {run.usage?.inputTokens ? <span>in: {run.usage.inputTokens.toLocaleString()}</span> : null}
                 {run.usage?.outputTokens ? <span>out: {run.usage.outputTokens.toLocaleString()}</span> : null}
                 {run.jobId && (
-                  <button className="font-sans font-medium text-accent hover:underline" onClick={() => openJob(run.jobId!)}>
+                  <button className="font-sans font-medium text-accent hover:underline" onClick={() => (onOpenJob(), openJob(run.jobId!))}>
                     Open job →
                   </button>
                 )}
