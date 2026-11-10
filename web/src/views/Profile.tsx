@@ -108,7 +108,7 @@ export function ProfileView() {
         </Card>
       </PageSectionBlock>
 
-      <PageSectionBlock id="story" title="Your story" desc="Your resume says what you did; this is who you are. Hermes weaves your answers into the story your cover letters are written from.">
+      <PageSectionBlock id="story" title="Your story">
         <StorySection />
       </PageSectionBlock>
 
