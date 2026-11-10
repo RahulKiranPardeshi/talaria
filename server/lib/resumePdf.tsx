@@ -88,7 +88,7 @@ function Header({ r }: { r: TailoredResume }) {
 function ResumeDoc({ r, size }: { r: TailoredResume; size: 'A4' | 'LETTER' }) {
   const dates = (a?: string, b?: string) => safe([a, b].filter(Boolean).join(' – '));
   return (
-    <Document title={`${r.name} — Resume`} author={r.name} creator="Talaria">
+    <Document title={`${r.name} Resume`} author={r.name} creator="" producer="">
       <Page size={size} style={s.page}>
         <Header r={r} />
         {r.summary ? (
@@ -176,7 +176,7 @@ function ResumeDoc({ r, size }: { r: TailoredResume; size: 'A4' | 'LETTER' }) {
 function LetterDoc({ r, body, company, size }: { r: TailoredResume; body: string; company: string; size: 'A4' | 'LETTER' }) {
   const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   return (
-    <Document title={`${r.name} — Cover letter — ${company}`} author={r.name} creator="Talaria">
+    <Document title={`${r.name} Cover Letter, ${company}`} author={r.name} creator="" producer="">
       <Page size={size} style={[s.page, { paddingHorizontal: 60, paddingTop: 54 }]}>
         <Header r={r} />
         <View style={s.letterBody}>

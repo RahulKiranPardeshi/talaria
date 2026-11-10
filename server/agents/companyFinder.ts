@@ -1,7 +1,7 @@
 // Adding companies to watch: from a name or a careers link, and Hermes's suggestions of employers
 // that hire for your roles where you want to work.
 import type { TargetCompany } from '../../shared/types.ts';
-import { askJson, finishRun, startRun } from '../lib/hermes.ts';
+import { askJson, finishRun, startRun } from '../lib/ai/index.ts';
 import { getPreferences, getProfile } from '../lib/store.ts';
 import { detectCompany, PLATFORM_LABEL } from '../sources/companies.ts';
 import { preferencesBrief, profileBrief, str } from './common.ts';
@@ -30,7 +30,7 @@ export async function resolveCompany(input: string, name?: string): Promise<Adde
         const got = await askJson<any>({
           prompt: `Use web_search to find the official careers page of the company "${text}": the page on their own website (or their hiring platform) that lists their open jobs. Prefer a page for ${getPreferences().locations[0] || 'their main country'} if they have country sites.
 Return ONLY JSON: {"url": string, "company": string}. If you can't find it, return {"url": ""}.`,
-          toolsets: ['web'],
+          web: true,
           handle: h,
           priority: 2,
           timeoutSec: 240,
@@ -74,7 +74,7 @@ ALREADY WATCHED (don't repeat): ${prefs.targetCompanies.map(c => c.name).join(',
 
 Return ONLY JSON: {"companies": [{"name": string, "url": string, "why": string}]}
 "url" = the company's careers page that lists open jobs (their own site or their hiring platform). "why" = one short sentence on why it fits this candidate, no em dashes.`,
-      toolsets: ['web'],
+      web: true,
       handle: h,
       priority: 2,
       timeoutSec: 360,

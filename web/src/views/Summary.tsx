@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { motion } from 'motion/react';
-import { ArrowDown, ArrowUp, Download, FileBarChart2, History, Sparkles } from 'lucide-react';
+import { ArrowDown, ArrowUp, Download, FileBarChart2, Sparkles, SquareStack } from 'lucide-react';
 import type { Job, Report } from '@shared/types';
 import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
@@ -38,7 +38,7 @@ export function SummaryView() {
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-7 pb-12">
-        <div className="max-w-[1180px] space-y-6">
+        <div className="space-y-6">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <Kpi label="Applied" value={applied.length} sub={thisWeek ? `+${thisWeek} this week` : 'none this week'} accent />
             <Kpi label="Heard back" value={applied.length ? `${Math.round((100 * responded) / applied.length)}%` : '—'} sub={`${responded} of ${applied.length}`} />
@@ -116,7 +116,7 @@ function DailyBars({ applied }: { applied: Job[] }) {
         {days.map((d, i) => (
           <div key={i} className="group relative flex h-full flex-1 items-end" onMouseEnter={() => setHover(i)}>
             <motion.div
-              className={cn('w-full rounded-[3px]', d.count ? (hover === i ? 'bg-accent' : 'bg-accent/75') : 'bg-line-2')}
+              className={cn('w-full ', d.count ? (hover === i ? 'bg-accent' : 'bg-accent/75') : 'bg-line-2')}
               initial={{ height: 0 }}
               animate={{ height: d.count ? `${Math.max(8, (d.count / max) * 100)}%` : '3px' }}
               transition={{ delay: i * 0.012, type: 'spring', bounce: 0.2 }}
@@ -153,8 +153,8 @@ function Funnel({ jobs }: { jobs: Job[] }) {
             <span className="text-ink-2">{s.label}</span>
             <span className="font-semibold text-ink tabular-nums">{s.n}</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-line-2">
-            <motion.div className="h-full rounded-full" style={{ background: s.color }} initial={{ width: 0 }} animate={{ width: `${(s.n / max) * 100}%` }} transition={{ delay: 0.1 + i * 0.07, duration: 0.7, ease: [0.22, 1, 0.36, 1] }} />
+          <div className="h-2 overflow-hidden bg-line-2">
+            <motion.div className="h-full " style={{ background: s.color }} initial={{ width: 0 }} animate={{ width: `${(s.n / max) * 100}%` }} transition={{ delay: 0.1 + i * 0.07, duration: 0.7, ease: [0.22, 1, 0.36, 1] }} />
           </div>
         </div>
       ))}
@@ -178,7 +178,7 @@ function ReportCard({ hasApplied }: { hasApplied: boolean }) {
     <Card className="overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-2 px-5 py-4">
         <div className="flex items-center gap-2.5">
-          <div className="grid size-8 place-items-center rounded-lg bg-gold-soft text-gold">
+          <div className="grid size-8 place-items-center bg-gold-soft text-gold">
             <Sparkles className="size-4" />
           </div>
           <div>
@@ -190,8 +190,8 @@ function ReportCard({ hasApplied }: { hasApplied: boolean }) {
           {reports.length > 1 && (
             <Menu>
               <MenuTrigger asChild>
-                <Button size="sm" variant="ghost" icon={<History className="size-3.5" />}>
-                  History
+                <Button size="sm" variant="ghost" icon={<SquareStack className="size-3.5" />}>
+                  SquareStack
                 </Button>
               </MenuTrigger>
               <MenuContent>
@@ -301,8 +301,8 @@ function ApplicationsTable({ rows }: { rows: Job[] }) {
                     <div className="text-[11.5px] text-faint">{timeAgo(j.appliedAt)}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[12px] font-medium" style={{ background: `color-mix(in oklab, ${meta.color} 13%, transparent)`, color: meta.color }}>
-                      <span className="size-1.5 rounded-full" style={{ background: meta.color }} />
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[12px] font-medium" style={{ background: `color-mix(in oklab, ${meta.color} 13%, transparent)`, color: meta.color }}>
+                      <span className="size-1.5 " style={{ background: meta.color }} />
                       {j.status === 'archived' ? (j.archivedReason === 'rejected' ? 'Not selected' : j.archivedReason === 'withdrawn' ? 'Withdrawn' : 'Archived') : meta.label}
                     </span>
                   </td>

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { toast } from 'sonner';
-import type { AgentRun, AnswerBankItem, Bootstrap, HermesStatus, Job, JobStatus, Preferences, Profile, Report, ScoutState, ServerEvent, Settings } from '@shared/types';
+import type { AgentRun, AISignIn, AIStatus, AnswerBankItem, Bootstrap, Job, JobStatus, Preferences, Profile, Report, ScoutState, ServerEvent, Settings } from '@shared/types';
 import { api } from './api';
 
 interface State {
@@ -13,7 +13,8 @@ interface State {
   runs: AgentRun[];
   answers: AnswerBankItem[];
   reports: Report[];
-  hermes: HermesStatus;
+  ai: AIStatus;
+  signin: Record<string, AISignIn>; // in-app sign-ins in progress, by provider
   scout: ScoutState;
 }
 
@@ -27,7 +28,8 @@ export const useApp = create<State>(() => ({
   runs: [],
   answers: [],
   reports: [],
-  hermes: { installed: false, ok: false },
+  ai: { ok: false },
+  signin: {},
   scout: { running: false },
 }));
 
@@ -44,7 +46,7 @@ export async function loadBootstrap() {
     runs: b.runs,
     answers: b.answers,
     reports: b.reports,
-    hermes: b.hermes,
+    ai: b.ai,
     scout: b.scout,
   });
 }
@@ -83,8 +85,11 @@ function apply(ev: ServerEvent) {
     case 'reports':
       set({ reports: ev.reports });
       break;
-    case 'hermes':
-      set({ hermes: ev.hermes });
+    case 'ai':
+      set({ ai: ev.ai });
+      break;
+    case 'signin':
+      set(s => ({ signin: { ...s.signin, [ev.signin.provider]: ev.signin } }));
       break;
     case 'scout':
       set({ scout: ev.scout });
@@ -99,7 +104,6 @@ function apply(ev: ServerEvent) {
 
 let es: EventSource | null = null;
 let retry = 0;
-let everConnected = false;
 
 export function connectEvents() {
   if (es) return;
@@ -107,9 +111,9 @@ export function connectEvents() {
   es.onopen = () => {
     retry = 0;
     set({ connected: true });
-    // Anything that happened while we were disconnected only exists in a fresh snapshot.
-    if (everConnected) loadBootstrap().catch(() => {});
-    everConnected = true;
+    // Anything that happened while we were disconnected (or before the first connection, such as the
+    // AI check that runs as the server starts) only exists in a fresh snapshot.
+    loadBootstrap().catch(() => {});
   };
   es.onerror = () => {
     set({ connected: false });

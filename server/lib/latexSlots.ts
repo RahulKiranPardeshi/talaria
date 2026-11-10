@@ -325,7 +325,7 @@ export function textHasKeyword(text: string, keyword: string): boolean {
 }
 
 /** Is this skill backed by something the candidate wrote (resume, notes, answers)? */
-function skillKnown(item: string, known: string): boolean {
+export function skillKnown(item: string, known: string): boolean {
   const t = plainLatex(item).toLowerCase().replace(/\s+/g, ' ').trim();
   if (!t) return false;
   if (known.includes(t)) return true;

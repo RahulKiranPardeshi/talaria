@@ -10,7 +10,7 @@ You don't need to know anything about AI or programming to use it. This guide st
 
 ### Already comfortable with a terminal?
 
-You need [Node.js](https://nodejs.org) 20.19+ and [Hermes Agent](https://github.com/NousResearch/hermes-agent) signed in to an AI provider (step 3 below). On Windows, double-clicking `Talaria.bat` installs both for you. Otherwise:
+You need [Node.js](https://nodejs.org) 20.19+ and an AI account (a ChatGPT plan, GitHub Copilot, or an API key). You sign in from Talaria's setup screen. On Windows, double-clicking `Talaria.bat` installs Node.js for you. Otherwise:
 
 ```bash
 git clone https://github.com/sehgalbhavya/talaria.git
@@ -41,8 +41,8 @@ Open http://127.0.0.1:5178 and follow the setup screen. Everyone else, read on.
 
 | Word | What it means |
 | --- | --- |
-| **Hermes** | A free program on your computer that acts as the AI assistant. It connects to an AI account you already have. |
-| **Provider** | The company whose AI Hermes uses (OpenAI/ChatGPT, GitHub Copilot, and so on). |
+| **Hermes** | The name of Talaria's AI assistant. It runs on an AI account you already have. |
+| **Provider** | The company whose AI Talaria uses (OpenAI/ChatGPT, GitHub Copilot, Google Gemini, and so on). |
 | **Terminal** | A window where you type commands. On Windows it's called *PowerShell*. You only ever paste lines from this guide into it. |
 | **Node.js** | A free program Talaria needs to run. |
 | **Repository ("repo")** | The folder of Talaria's files on GitHub. |
@@ -53,9 +53,9 @@ Open http://127.0.0.1:5178 and follow the setup screen. Everyone else, read on.
 
 1. **A computer** with an internet connection. Windows 10/11 is the best-tested. Mac and Linux should work too (see the notes in step 2).
 2. **An AI account you already pay for or get free.** Pick **one**:
-   - a **ChatGPT** plan (Plus, Pro or Business), which also covers Codex, **or**
+   - a **ChatGPT** plan (Plus, Pro, Business or Edu), **or**
    - **GitHub Copilot** (free for verified students and teachers), **or**
-   - an **API key** from a provider such as OpenRouter, Google Gemini, Anthropic or OpenAI. (An API key is a long password that lets a program use an AI service. It's usually billed per use.)
+   - an **API key** from a provider such as Google Gemini (free), OpenRouter, Anthropic (Claude), OpenAI, Groq or xAI. (An API key is a long password that lets a program use an AI service. It's usually billed per use.)
 3. **Your resume** as a PDF, Word file, text, or LaTeX file (`.tex` or an Overleaf `.zip`).
 4. **Google Chrome is not required.** Talaria brings its own browser window for submitting forms.
 
@@ -88,29 +88,20 @@ The first time, a **Set up Talaria** window opens. It checks your computer and l
 | Part | What it's for | Size |
 | --- | --- | --- |
 | **Node.js** | Runs Talaria. A private copy goes inside the Talaria folder; nothing else on your computer changes. | about 30 MB |
-| **Hermes** | The AI assistant that reads your resume, scores jobs and writes your applications. Installed by its own official installer. | about 1 GB |
 | **Talaria's packages** | The building blocks Talaria is made of. | about 200 MB |
 | **Browser for applications** *(optional, ticked)* | A separate browser Talaria uses to fill in and submit application forms. | about 150 MB |
 | **MiKTeX** *(optional)* | Only if your resume is a LaTeX file: keeps its exact design. | about 250 MB |
 
-Anything you already have shows a green tick and is left alone. **Nothing is downloaded until you press Install.** Then two progress bars show which step it's on and how far the current download is. **Show details** shows every message as it happens; the same is saved in `data\setup-log.txt`. Installing Hermes takes longest, often 5 to 15 minutes. No admin rights are needed, except for MiKTeX, where Windows may ask you to allow it. If something fails, the window tells you what happened, and **Try again** carries on from that step.
+Anything you already have shows a green tick and is left alone. **Nothing is downloaded until you press Install.** Then two progress bars show which step it's on and how far the current download is. **Show details** shows every message as it happens; the same is saved in `data\setup-log.txt`. It usually takes a few minutes. No admin rights are needed, except for MiKTeX, where Windows may ask you to allow it. If something fails, the window tells you what happened, and **Try again** carries on from that step.
 
 When it says *You're ready to go*, press **Start Talaria**. A black window appears and fills with text; that's normal. When it's ready, your web browser opens Talaria at **http://127.0.0.1:5178**.
 
 **Keep the black window open while you use Talaria.** Closing it stops the app. Next time, double-click `Talaria.bat` again and you're back where you left off; the setup window only comes back if something it needs has gone missing. To add MiKTeX or the browser for applications later, double-click **Run setup** in the `setup` folder.
 
-> **Windows antivirus warning?** Some antivirus programs wrongly flag a file called `uv.exe` that Hermes installs. It's a safe, well-known tool. See the [Hermes README](https://github.com/NousResearch/hermes-agent) if yours complains.
-
-#### Mac or Linux: two installs, then one command
+#### Mac or Linux: one install, then one command
 
 1. Install **Node.js**: go to **https://nodejs.org**, download the **LTS** version and run the installer (version 20.19 or higher).
-2. Install **Hermes** by pasting this into a terminal, then close the terminal and open a new one:
-
-   ```bash
-   curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
-   ```
-
-3. Open a terminal *inside the Talaria folder* and run:
+2. Open a terminal *inside the Talaria folder* and run:
 
    ```bash
    ./talaria.sh
@@ -122,52 +113,20 @@ Optional extras: for submitting applications, run `npx playwright install chromi
 
 ### Step 3: Sign in to your AI account
 
-You only do this once, in a terminal (Windows: press the **Windows key**, type `PowerShell`, press Enter). Pick the option that matches what you have.
+You do this once, inside Talaria's setup screen (step 4), with no terminal. Pick the option that matches what you have:
 
-#### Option A: ChatGPT or Codex plan
+- **ChatGPT plan:** press **Sign in with ChatGPT**, sign in in the browser tab that opens and approve. There's no API key and no extra bill; it uses your plan's allowance. If you use it heavily you may hit your plan's limits, and Talaria will pause and retry automatically.
+- **GitHub Copilot:** press **Sign in with GitHub**, type the short code Talaria shows on GitHub's page and approve. Copilot must be switched on for your account at https://github.com/settings/copilot.
+- **An API key** (Gemini, OpenRouter, Claude, OpenAI, Groq, xAI): press **Get a key**, create one, paste it in and press **Save and test**. A free Gemini key from https://aistudio.google.com/apikey is the easiest start. Keep your key private. Never share it or post it online.
 
-```bash
-hermes auth add openai-codex --type oauth
-```
-
-A browser window opens. Sign in to ChatGPT and approve. When the terminal says it's done, you're connected. There's no API key and no extra bill; it uses your plan's allowance. If you use it heavily you may hit your plan's limits, and Talaria will pause and retry automatically.
-
-#### Option B: GitHub Copilot
-
-1. Install the GitHub command-line tool. On Windows:
-
-   ```powershell
-   winget install --id GitHub.cli
-   ```
-
-   On Mac: `brew install gh`. On Linux, follow https://cli.github.com.
-
-2. Sign in:
-
-   ```bash
-   gh auth login
-   ```
-
-   Choose *GitHub.com*, *HTTPS*, and *Login with a web browser*, then follow the prompts.
-
-3. Make sure Copilot is switched on for your account at https://github.com/settings/copilot.
-
-#### Option C: An API key (OpenRouter, Gemini, Anthropic, OpenAI, and others)
-
-```bash
-hermes model
-```
-
-It shows a menu. Pick your provider and paste your key when asked. Keep your key private. Never share it or post it online.
-
-> You can also do this step later, from inside Talaria's setup screen (step 4). It shows the same commands with a **Copy** button and a **Test the connection** button.
+Your sign-in or key is stored only on your computer, in `data/ai-accounts.json` (on Windows, encrypted with your Windows account). If you used an older version of Talaria with Hermes, your sign-ins are brought over automatically.
 
 ### Step 4: First-time setup in Talaria
 
 The first time you open Talaria, a guided setup gets to know you. It takes about 10 minutes, and if you close the window halfway it picks up where you left off.
 
 1. **Welcome.** What Talaria will ask you and what to have ready.
-2. **Connect the AI.** Talaria checks that Hermes is installed, asks which AI account you have, and shows you the exact sign-in command. Press **Test the connection**. When it says *It works!*, continue.
+2. **Connect the AI.** Pick the AI account you have and sign in (step 3). Talaria tests it right away; when it says *It works!*, continue.
 3. **Your resume.** Drag your resume in (or paste its text). Hermes reads it in the background while you carry on, and a note at the top of the screen tells you when it's done. It never invents experience you don't have.
 4. **Your story.** Four short questions in your own words: why you do this work, what you're proudest of, what you want next, and who you are outside work. Your cover letters are written from this. Skip any you like.
 5. **What you're after.** The roles and level you want; where and how you want to work (locations, remote, visa sponsorship, salary); and what matters to you (topics you'd love, deal-breakers, companies to skip). Hermes fills in suggestions from your resume, but never overwrites what you've chosen.
@@ -217,7 +176,7 @@ Use **All / Jobs / PhDs** at the top of the board to see one kind or both.
 
 **LinkedIn.** **Settings → LinkedIn → Connect** opens LinkedIn in Talaria's window and you sign in yourself; Talaria never sees your password. It reads up to 20 postings at a human pace and never uses Easy Apply. **LinkedIn's terms forbid automated access, so there is some risk to your account. Leave this off if that worries you.**
 
-**Chat with your board from Hermes.** In Settings, Talaria shows a one-line command that lets you ask Hermes things like *"what's waiting on me?"* from a terminal.
+**Chat with your board from an AI app.** Talaria is also an MCP server. In **Settings → Connections**, copy its address into an app that supports MCP (Claude Code, Codex, Cursor and others) and ask things like *"what's waiting on me?"*.
 
 ---
 
@@ -226,18 +185,18 @@ Use **All / Jobs / PhDs** at the top of the board to see one kind or both.
 | Problem | What to do |
 | --- | --- |
 | **`node` is not recognized** | On Windows, double-click `Talaria.bat`: its setup window installs Node.js. On Mac or Linux, close the terminal and open a new one, or reinstall Node.js (step 2). |
-| **`hermes` is not recognized** | Close the terminal and open a new one. If it still fails, double-click `Talaria.bat` (Windows) or run the Hermes install line (step 2) again. |
 | **Setup stopped with an error** | Press **Try again**. If it keeps failing, open `data\setup-log.txt` in the Talaria folder: the last lines say what went wrong. |
 | **The black window closes right away** | Open a terminal in the Talaria folder and run `npm install`, then `npm start`. Read the message it prints. |
 | **The page says "Waiting for the Talaria server…"** | The black window was closed or is still starting. Reopen `Talaria.bat` and wait a minute. |
-| **"Test the connection" fails for ChatGPT/Codex** | Run `hermes auth add openai-codex --type oauth` again and finish the browser sign-in. |
-| **"Test the connection" fails for Copilot** | Run `gh auth login` again, and check Copilot is switched on at github.com/settings/copilot. The model may also need enabling there. |
+| **The ChatGPT sign-in doesn't finish** | Press **Sign in with ChatGPT** again and finish in the browser. If another program (such as the Codex app) is signing in at the same time, Talaria shows a code to type instead. |
+| **The connection test fails for Copilot** | Check Copilot is switched on at github.com/settings/copilot. The model may also need enabling there. Then **Sign out** and sign in again in **Settings → AI model**. |
+| **Web search finds nothing** | The free search services Talaria uses limit how often you can search. Talaria waits and tries another one; try again in a few minutes. With a ChatGPT plan, ChatGPT's own web search is used. |
 | **Answers are very slow or paused** | Your AI plan's limit was reached. Talaria pauses and retries when it resets. You can switch models in **Settings**. |
 | **Resume won't upload** | If it's a scanned PDF, paste the text instead. Photos of text can't be read. |
 | **LaTeX resume won't compile** | Install MiKTeX: on Windows, open the `setup` folder, double-click **Run setup** and switch MiKTeX on. Or get it from https://miktex.org. Then restart Talaria. |
 | **Applications won't submit** | The browser for applications may be missing: on Windows, double-click **Run setup** in the `setup` folder and switch it on (or run `npx playwright install chromium` in the Talaria folder), then restart. Then check **Settings → Applying → Submit applications for me** is on. |
 | **Port 5178 is already in use** | Talaria is probably already running in another window. Close it, or open http://127.0.0.1:5178. |
-| **Something else is wrong** | Open the **Activity** page in Talaria. It shows what every Hermes task did and any error it hit. |
+| **Something else is wrong** | Open the **Activity** page in Talaria. It shows what every AI task did and any error it hit. |
 
 ---
 
@@ -245,7 +204,7 @@ Use **All / Jobs / PhDs** at the top of the board to see one kind or both.
 
 Everything Talaria stores lives in the **`data/`** folder next to the app: your profile, jobs, drafts, screenshots, and (if you connect it) your Gmail app password. This folder is **not** part of the GitHub repository and is never uploaded. Back it up if you care about your history, and **never share it**, because it contains your personal details.
 
-Messages to your AI provider (your resume text, the job text, your answers) pass through Hermes. Nothing goes to an employer until you press Finalize.
+Messages go straight from your computer to your AI provider (your resume text, the job text, your answers). When the AI searches the web, the search words go to a free search service (Exa, DuckDuckGo or Parallel) unless your provider has its own search. Nothing goes to an employer until you press Finalize.
 
 To start completely fresh, use **Settings → Start over**.
 
@@ -272,16 +231,16 @@ npm start          # production build + server at http://127.0.0.1:5178
 ```
 
 - Front end: React, Vite, Tailwind, in `web/`. Server: Node + Express + TypeScript (run with `tsx`), in `server/`. Shared types are in `shared/`.
-- All AI work goes through the Hermes CLI (`server/lib/hermes.ts`), under a dedicated Hermes profile called `talaria`. Remove it any time with `hermes profile delete talaria`.
+- All AI work goes through Talaria's own client in `server/lib/ai/`: `index.ts` (queue, pauses, runs), `providers.ts` (sign-ins and requests for each provider), `web.ts` (web search and page reading for the AI), `credentials.ts` (sign-ins, stored in `data/ai-accounts.json`).
 ### Project layout
 
 | Path | What's there |
 | --- | --- |
 | `server/index.ts` | Express API and static file server. |
-| `server/agents/` | The jobs Hermes does: scouting, fit analysis, tailoring, applying, Gmail, LinkedIn, autopilot. |
+| `server/agents/` | The AI's jobs: scouting, fit analysis, tailoring, applying, Gmail, LinkedIn, autopilot. |
 | `server/sources/` | Job-board adapters (public, key-free feeds) and company career pages. |
-| `server/lib/` | Hermes bridge, JSON store, browser automation, LaTeX and PDF rendering. |
-| `server/mcp.ts` | MCP server that lets Hermes chat with your board. |
+| `server/lib/` | AI client, JSON store, browser automation, LaTeX and PDF rendering. |
+| `server/mcp.ts` | MCP server that lets AI apps chat with your board. |
 | `shared/` | Types shared by server and web. |
 | `web/src/` | The React app: `views/` are pages, `components/` are building blocks. |
 
@@ -293,10 +252,9 @@ All optional. Copy `.env.example` for a list; the launchers don't load it, so se
 | --- | --- | --- |
 | `TALARIA_PORT` | `5178` | Port the server listens on. |
 | `TALARIA_DATA_DIR` | `./data` | Where your profile, jobs and drafts are stored. |
-| `TALARIA_HERMES_PROFILE` | `talaria` | Hermes profile used for agent calls. Set it empty to use your default profile. |
 | `TALARIA_HEADLESS` | unset | `1` hides the browser window while applying. |
 | `TALARIA_BROWSER_PROFILE` | `data/browser-profile` | Folder for the automation browser's sign-ins. |
-| `HERMES_HOME` | Hermes default | Where Hermes keeps its config. |
+| `HERMES_HOME` | Hermes default | Read once, to bring over sign-ins from Hermes (used by older versions). |
 
 Want to help? See [CONTRIBUTING.md](CONTRIBUTING.md).
 

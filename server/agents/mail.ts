@@ -7,7 +7,7 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import type { Job, MailItem, MailKind } from '../../shared/types.ts';
 import { DATA_DIR } from '../lib/paths.ts';
-import { askJson, finishRun, rateLimitedUntil, startRun, type RunHandle } from '../lib/hermes.ts';
+import { askJson, finishRun, rateLimitedUntil, startRun, type RunHandle } from '../lib/ai/index.ts';
 import { toast } from '../lib/events.ts';
 import { getJob, getSettings, listJobs, now, setSettings, updateJob } from '../lib/store.ts';
 import { moveJob } from './pipeline.ts';

@@ -1,9 +1,10 @@
 // The collaborative workspace: the job on the left, a conversation with Hermes in the middle and
 // the live resume and cover letter on the right. Opens for jobs Hermes is working on or waiting on you.
 import * as React from 'react';
+import { aiProviderLabel } from '@shared/aiProviders';
 import * as RDialog from '@radix-ui/react-dialog';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertTriangle, ArrowUp, Check, ChevronDown, Clock, Download, ExternalLink, FileText, History, Info, Lightbulb, MapPin, PanelLeftClose, PanelLeftOpen, PartyPopper, Pencil, RefreshCw, Send, Sparkles, Wand2, X } from 'lucide-react';
+import { AlertTriangle, ArrowUp, Check, ChevronDown, Download, ExternalLink, FileText, Hourglass, Lightbulb, MapPin, PanelLeftClose, PanelLeftOpen, PartyPopper, Pencil, RefreshCw, Send, Sparkles, SquareAsterisk, SquareStack, Wand2, X } from 'lucide-react';
 import type { AgentQuestion, ChatMessage, Job } from '@shared/types';
 import { jobTrack } from '@shared/track';
 import { isStaleDraft } from '@shared/resume';
@@ -44,7 +45,7 @@ export function Workspace({ job, open }: { job: Job; open: boolean }) {
             </RDialog.Overlay>
             <RDialog.Content asChild aria-describedby={undefined} onOpenAutoFocus={e => e.preventDefault()}>
               <motion.div
-                className="fixed inset-2 z-40 flex flex-col overflow-hidden rounded-2xl bg-bg shadow-pop outline-none"
+                className="fixed inset-2 z-40 flex flex-col overflow-hidden bg-bg shadow-pop outline-none"
                 initial={{ y: 14, opacity: 0, scale: 0.995 }}
                 animate={{ y: 0, opacity: 1, scale: 1 }}
                 exit={{ y: 10, opacity: 0 }}
@@ -80,7 +81,7 @@ export function Workspace({ job, open }: { job: Job; open: boolean }) {
                   <Tooltip content={showPosting ? 'Hide the job posting' : 'Show the job posting side by side'}>
                     <button
                       onClick={() => setShowPosting(v => !v)}
-                      className={cn('hidden h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12.5px] font-medium transition-colors lg:inline-flex', showPosting ? 'bg-ink/[0.06] text-ink dark:bg-white/[0.08]' : 'text-muted hover:bg-ink/[0.05] hover:text-ink')}
+                      className={cn('hidden h-8 items-center gap-1.5 px-2.5 text-[12.5px] font-medium transition-colors lg:inline-flex', showPosting ? 'bg-ink/[0.06] text-ink dark:bg-white/[0.08]' : 'text-muted hover:bg-ink/[0.05] hover:text-ink')}
                     >
                       {showPosting ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
                       Posting
@@ -187,7 +188,7 @@ function ChatPane({ job }: { job: Job }) {
       <div ref={scroller} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5">
         {!messages.length && !working && (
           <div className="mx-auto max-w-sm pt-10 text-center">
-            <div className="mx-auto mb-3 grid size-11 place-items-center rounded-xl bg-[#17161c] shadow-card">
+            <div className="mx-auto mb-3 grid size-11 place-items-center bg-[#17161c] shadow-card">
               <Logo className="size-7" />
             </div>
             <div className="font-display text-[17px] text-ink">Work on this application with Hermes</div>
@@ -209,7 +210,7 @@ function ChatPane({ job }: { job: Job }) {
 
 function HermesAvatar({ small }: { small?: boolean }) {
   return (
-    <span className={cn('grid shrink-0 place-items-center rounded-lg bg-[#17161c] shadow-card dark:ring-1 dark:ring-white/10', small ? 'size-7' : 'size-8')}>
+    <span className={cn('grid shrink-0 place-items-center bg-[#17161c] shadow-card dark:ring-1 dark:ring-white/10', small ? 'size-7' : 'size-8')}>
       <Logo className={small ? 'size-[18px]' : 'size-5'} />
     </span>
   );
@@ -219,14 +220,14 @@ function Message({ m, job }: { m: ChatMessage; job: Job }) {
   if (m.from === 'you') {
     return (
       <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex justify-end pl-10">
-        <div className="rounded-2xl rounded-br-md bg-ink px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap text-bg">{m.text}</div>
+        <div className="bg-ink px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap text-bg">{m.text}</div>
       </motion.div>
     );
   }
   if (m.kind === 'status') {
     return (
       <div className="flex justify-center">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-soft px-3 py-1 text-[12px] font-medium text-ok">
+        <span className="inline-flex items-center gap-1.5 bg-ok-soft px-3 py-1 text-[12px] font-medium text-ok">
           <Check className="size-3.5" />
           {m.text}
         </span>
@@ -238,13 +239,13 @@ function Message({ m, job }: { m: ChatMessage; job: Job }) {
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2.5 pr-4">
       <HermesAvatar small />
       <div className="min-w-0 flex-1 space-y-2.5">
-        <div className={cn('rounded-2xl rounded-tl-md px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap', m.kind === 'error' ? 'bg-bad-soft/70 text-bad' : 'bg-card text-ink shadow-card')}>
+        <div className={cn('px-3.5 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap', m.kind === 'error' ? 'bg-bad-soft/70 text-bad' : 'bg-card text-ink shadow-card')}>
           {m.kind === 'error' && <AlertTriangle className="mr-1.5 mb-0.5 inline size-3.5" />}
           {m.text}
           {m.changes && m.changes.length > 0 && <Changes changes={m.changes} />}
         </div>
         {m.snippet && (
-          <div className="rounded-2xl border border-line bg-card p-3.5 shadow-card">
+          <div className="border border-line bg-card p-3.5 shadow-card">
             <p className="text-[13.5px] leading-relaxed whitespace-pre-wrap text-ink">{m.snippet}</p>
             <div className="mt-2.5 flex items-center justify-between border-t border-line-2 pt-2 text-[11.5px] text-faint">
               <span className="tabular-nums">
@@ -315,7 +316,7 @@ function QuestionsBlock({ job, questions, interview }: { job: Job; questions: Ag
 
   if (!editing) {
     return (
-      <div className="overflow-hidden rounded-2xl border border-line-2 bg-panel">
+      <div className="overflow-hidden border border-line-2 bg-panel">
         {questions.map(q => (
           <div key={q.id} className="border-b border-line-2 px-3.5 py-2.5 last:border-0">
             <div className="text-[12px] text-muted">{q.question}</div>
@@ -330,7 +331,7 @@ function QuestionsBlock({ job, questions, interview }: { job: Job; questions: Ag
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-warn/25 bg-card shadow-card">
+    <div className="overflow-hidden border border-warn/25 bg-card shadow-card">
       <div className="divide-y divide-line-2 [&>div]:px-4 [&>div]:py-3.5">
         {questions.map(q => (
           <QuestionField
@@ -371,21 +372,22 @@ function Thinking({ job }: { job: Job }) {
   const step = workingStep(job) || 'Working';
   const since = [job.work.chat, job.work.tailor, job.work.submit, job.work.analyze].find(t => t && (t.state === 'running' || t.state === 'queued'))?.at;
   const elapsed = useElapsed(since, true);
-  const pausedUntil = useApp(s => s.hermes.rateLimitedUntil);
+  const pausedUntil = useApp(s => s.ai.rateLimitedUntil);
+  const provider = useApp(s => s.ai.provider);
   const paused = pausedUntil && Date.parse(pausedUntil) > Date.now() ? new Date(pausedUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
   return (
     <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2.5">
       <HermesAvatar small />
-      <div className="agent-sheen inline-flex items-center gap-2.5 rounded-2xl rounded-tl-md border border-gold/15 bg-gold-soft/60 px-3.5 py-2.5 text-[13px] font-medium text-gold">
+      <div className="agent-sheen inline-flex items-center gap-2.5 border border-gold/15 bg-gold-soft/60 px-3.5 py-2.5 text-[13px] font-medium text-gold">
         {paused ? (
           <>
-            <Clock className="size-3.5" /> Paused by Copilot's rate limit, resumes {paused}
+            <Hourglass className="size-3.5" /> Paused by {aiProviderLabel(provider)}'s rate limit, resumes {paused}
           </>
         ) : (
           <>
             <span className="flex gap-1">
               {[0, 1, 2].map(i => (
-                <motion.span key={i} className="size-1.5 rounded-full bg-gold" animate={{ opacity: [0.25, 1, 0.25] }} transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.18 }} />
+                <motion.span key={i} className="size-1.5 bg-gold" animate={{ opacity: [0.25, 1, 0.25] }} transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.18 }} />
               ))}
             </span>
             {step}…
@@ -445,7 +447,7 @@ function Composer({ job }: { job: Job }) {
               key={c.label}
               disabled={chatting}
               onClick={c.run}
-              className="h-7 shrink-0 rounded-full border border-line bg-card px-3 text-[12px] text-muted transition-colors hover:border-ink/20 hover:text-ink disabled:opacity-50"
+              className="h-7 shrink-0 border border-line bg-card px-3 text-[12px] text-muted transition-colors hover:border-ink/20 hover:text-ink disabled:opacity-50"
             >
               {c.label}
             </button>
@@ -477,7 +479,7 @@ function Composer({ job }: { job: Job }) {
           type="submit"
           aria-label="Send"
           disabled={!text.trim() || chatting || sending}
-          className="grid size-8 shrink-0 place-items-center rounded-lg bg-ink text-bg transition-opacity disabled:opacity-30"
+          className="grid size-8 shrink-0 place-items-center bg-ink text-bg transition-opacity disabled:opacity-30"
         >
           <ArrowUp className="size-4" />
         </button>
@@ -545,7 +547,7 @@ function DocsPane({ job }: { job: Job }) {
           {p && (doc === 'resume' || doc === 'letter') && <RewriteButton job={job} part={doc === 'resume' ? 'resume' : 'cover'} busy={tailoring} />}
           {cov && cov.after > 0 && (
             <Tooltip content={cov.missing.length ? `Missing: ${cov.missing.filter(k => !cov.unfit?.includes(k)).join(', ') || 'none you can honestly add'}${cov.unfit?.length ? `. Left out (not your experience): ${cov.unfit.join(', ')}` : ''}` : 'Every keyword from the posting is in your resume'}>
-              <span className="inline-flex h-7 items-center gap-1 rounded-md bg-ink/[0.04] px-2 text-[12px] text-muted tabular-nums dark:bg-white/[0.06]">
+              <span className="inline-flex h-7 items-center gap-1 bg-ink/[0.04] px-2 text-[12px] text-muted tabular-nums dark:bg-white/[0.06]">
                 ATS <span className="font-semibold text-ok">{cov.after}%</span>
               </span>
             </Tooltip>
@@ -553,15 +555,15 @@ function DocsPane({ job }: { job: Job }) {
           {history.length > 0 && (
             <Menu>
               <MenuTrigger asChild>
-                <button className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-muted transition-colors hover:bg-ink/[0.05] hover:text-ink">
-                  <History className="size-3.5" /> Versions
+                <button className="inline-flex h-7 items-center gap-1 px-2 text-[12px] font-medium text-muted transition-colors hover:bg-ink/[0.05] hover:text-ink">
+                  <SquareStack className="size-3.5" /> Versions
                 </button>
               </MenuTrigger>
               <MenuContent>
                 <div className="max-w-72 px-2.5 py-1.5 text-[11.5px] text-faint">Now: {p?.note || 'Current draft'}</div>
                 <MenuSeparator />
                 {history.map((v, i) => (
-                  <MenuItem key={i} icon={<History />} disabled={tailoring} onSelect={() => jobActions.restore(job.id, i).then(() => toast.success('Restored that version'))}>
+                  <MenuItem key={i} icon={<SquareStack />} disabled={tailoring} onSelect={() => jobActions.restore(job.id, i).then(() => toast.success('Restored that version'))}>
                     <span className="block max-w-64 truncate">{v.note}</span>
                     <span className="text-[11px] text-faint">{timeAgo(v.at)} · restore</span>
                   </MenuItem>
@@ -581,7 +583,7 @@ function DocsPane({ job }: { job: Job }) {
 
       {stale && (
         <div className="flex items-center gap-2 border-b border-gold/20 bg-gold-soft/70 px-4 py-2 text-[12.5px] text-ink-2">
-          <Info className="size-3.5 shrink-0 text-gold" />
+          <SquareAsterisk className="size-3.5 shrink-0 text-gold" />
           <span className="min-w-0 flex-1 truncate">This draft was tailored from your previous resume.</span>
           <button
             className="shrink-0 font-medium text-ink hover:underline"
@@ -597,7 +599,7 @@ function DocsPane({ job }: { job: Job }) {
           (p ? (
             <>
               {p.latexError && (
-                <div className="mb-3 rounded-xl bg-info-soft px-4 py-2.5 text-[12.5px] text-info">Hermes's wording wouldn't compile in your LaTeX template, so this is your original text in it. Ask Hermes to try again.</div>
+                <div className="mb-3 bg-info-soft px-4 py-2.5 text-[12.5px] text-info">Hermes's wording wouldn't compile in your LaTeX template, so this is your original text in it. Ask Hermes to try again.</div>
               )}
               <PdfFrame src={`/api/jobs/${job.id}/resume.pdf?v=${resumeVersion}`} title="Tailored resume" dim={tailoring} />
             </>
@@ -611,8 +613,8 @@ function DocsPane({ job }: { job: Job }) {
         <AnimatePresence>{(doc === 'resume' || doc === 'letter') && (tailoring || (!p && !awaitingInterview(job) && isWorking(job))) && <BuildingOverlay job={job} />}</AnimatePresence>
         {doc === 'resume' && !p && awaitingInterview(job) && (
           <div className="pointer-events-none absolute inset-x-0 top-10 flex justify-center px-6">
-            <div className="pointer-events-auto max-w-sm rounded-2xl bg-card/95 p-5 text-center shadow-pop backdrop-blur">
-              <Info className="mx-auto size-5 text-accent" />
+            <div className="pointer-events-auto max-w-sm bg-card/95 p-5 text-center shadow-pop backdrop-blur">
+              <SquareAsterisk className="mx-auto size-5 text-accent" />
               <div className="mt-2 text-[14px] font-semibold text-ink">This is your resume as it is today</div>
               <p className="mt-1 text-[12.5px] leading-relaxed text-muted">Answer Hermes's questions in the chat and the tailored version is built from them, right here.</p>
             </div>
@@ -640,7 +642,7 @@ function RewriteButton({ job, part, busy }: { job: Job; part: 'resume' | 'cover'
             setSending(false);
           }
         }}
-        className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12px] font-medium text-muted transition-colors hover:bg-ink/[0.05] hover:text-ink disabled:opacity-50 dark:hover:bg-white/[0.06]"
+        className="inline-flex h-7 items-center gap-1 px-2 text-[12px] font-medium text-muted transition-colors hover:bg-ink/[0.05] hover:text-ink disabled:opacity-50 dark:hover:bg-white/[0.06]"
       >
         <RefreshCw className={cn('size-3.5', (busy || sending) && 'animate-spin')} />
         {label}
@@ -661,14 +663,14 @@ function PdfFrame({ src, title, dim }: { src: string; title: string; dim?: boole
       key={src}
       title={title}
       src={`${src}${src.includes('#') ? '' : '#'}toolbar=0&navpanes=0&view=FitH`}
-      className={cn('mx-auto block h-full min-h-[600px] w-full max-w-[900px] rounded-[4px] bg-white shadow-[0_2px_10px_rgb(0_0_0/0.10)] transition-[filter,opacity] duration-500', dim && 'opacity-60 blur-[1.5px]')}
+      className={cn('mx-auto block h-full min-h-[600px] w-full max-w-[900px] bg-white shadow-[0_2px_10px_rgb(0_0_0/0.10)] transition-[filter,opacity] duration-500', dim && 'opacity-60 blur-[1.5px]')}
     />
   );
 }
 
 function Placeholder({ text }: { text: string }) {
   return (
-    <div className="mx-auto mt-10 max-w-sm rounded-2xl bg-card p-6 text-center shadow-card">
+    <div className="mx-auto mt-10 max-w-sm bg-card p-6 text-center shadow-card">
       <FileText className="mx-auto size-5 text-faint" />
       <p className="mt-2 text-[13px] leading-relaxed text-muted">{text}</p>
     </div>
@@ -689,7 +691,7 @@ function BuildingOverlay({ job }: { job: Job }) {
   const idx = Math.min(buildStage(step), steps.length - 1);
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pointer-events-none absolute inset-x-0 top-10 flex justify-center px-6">
-      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-card/95 shadow-pop backdrop-blur">
+      <div className="w-full max-w-sm overflow-hidden bg-card/95 shadow-pop backdrop-blur">
         <div className="agent-sheen flex items-center gap-3 border-b border-gold/15 bg-gold-soft/50 px-4 py-3">
           <Sparkles className="size-4 animate-pulse-soft text-gold" />
           <span className="text-[13px] font-semibold text-ink">{job.packet ? 'Hermes is revising' : 'Hermes is building your application'}</span>
@@ -699,9 +701,9 @@ function BuildingOverlay({ job }: { job: Job }) {
             const done = i < idx;
             const current = i === idx;
             return (
-              <li key={s} className={cn('flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-[12.5px]', current && 'bg-gold-soft/40')}>
-                <span className={cn('grid size-5 place-items-center rounded-full border', done ? 'border-ok bg-ok text-white' : current ? 'border-gold text-gold' : 'border-line text-faint')}>
-                  {done ? <Check className="size-3" strokeWidth={3} /> : current ? <span className="size-1.5 animate-pulse rounded-full bg-gold" /> : <span className="text-[10px]">{i + 1}</span>}
+              <li key={s} className={cn('flex items-center gap-2.5 px-2 py-1.5 text-[12.5px]', current && 'bg-gold-soft/40')}>
+                <span className={cn('grid size-5 place-items-center border', done ? 'border-ok bg-ok text-white' : current ? 'border-gold text-gold' : 'border-line text-faint')}>
+                  {done ? <Check className="size-3" strokeWidth={3} /> : current ? <span className="size-1.5 animate-pulse bg-gold" /> : <span className="text-[10px]">{i + 1}</span>}
                 </span>
                 <span className={cn(done ? 'text-muted' : current ? 'font-medium text-ink' : 'text-faint')}>{s}</span>
               </li>

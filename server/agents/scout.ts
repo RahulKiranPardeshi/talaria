@@ -3,10 +3,11 @@ import { readBoard } from '../sources/boards.ts';
 import { companyBoard, readPosting } from '../sources/companies.ts';
 import { phdSearch } from './phd.ts';
 import { wantsJobs } from '../../shared/track.ts';
+import { findPlace, placesContaining } from '../../shared/places.ts';
 import * as S from '../sources/index.ts';
 import { scoutLinkedIn } from './linkedin.ts';
 import type { RawJob } from '../sources/index.ts';
-import { askJson, finishRun, markRunning, startRun, type RunHandle } from '../lib/hermes.ts';
+import { askJson, finishRun, markRunning, startRun, type RunHandle } from '../lib/ai/index.ts';
 import { emit, toast } from '../lib/events.ts';
 import { dedupeKey, getPreferences, getProfile, getSettings, hasSeen, insertJob, listJobs, markSeen, newId, now, setSettings } from '../lib/store.ts';
 import { guessSeniority, truncate } from '../lib/text.ts';
@@ -118,6 +119,9 @@ export function candidateRegions(prefs: Preferences, profile: Profile | null): S
   for (const l of sources) {
     for (const [key, aliases] of Object.entries(LOC_ALIASES)) if (l.includes(key)) aliases.forEach(a => out.add(a));
     for (const part of l.split(/[,/|·]/).map(s => s.trim())) if (part.length > 1 && part !== 'remote') out.add(part);
+    // "Remote (EU)" or "Remote, Nordics" is open to someone in Stockholm.
+    const place = findPlace(l);
+    if (place) for (const p of [place, ...placesContaining(place)]) [p.name, ...p.aliases].forEach(n => out.add(n.toLowerCase()));
   }
   const joined = [...out].join(' ');
   for (const [re, regions] of REGION_EXPAND) if (re.test(joined)) regions.forEach(r => out.add(r));
@@ -140,7 +144,8 @@ function locationMatches(jobLoc: string, prefLocs: string[]): boolean {
   const l = ` ${jobLoc.toLowerCase()} `;
   return prefLocs.some(p => {
     const key = p.toLowerCase().split(',')[0].trim();
-    const opts = LOC_ALIASES[key] || [key];
+    // A known place covers its cities, other spellings and, for regions, every country in it.
+    const opts = [...(findPlace(p)?.terms || []), ...(LOC_ALIASES[key] || [key])];
     return opts.some(o => new RegExp(`[^a-z]${o.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^a-z]`).test(l));
   });
 }
@@ -248,7 +253,7 @@ async function scoreBatch(batch: Candidate[], profile: Profile, prefs: Preferenc
   return map;
 }
 
-// ---------- Hermes web scout ----------
+// ---------- web scout ----------
 
 const WEB_PROMPT = (profile: string, prefs: string, n: number) => `You are a job scout. Use your web_search tool (and web_extract if useful) to find up to ${n} CURRENTLY OPEN job postings that fit this candidate.
 
@@ -263,10 +268,10 @@ Search tips: run several targeted searches combining the target role and locatio
 Return ONLY a JSON array: [{"title": string, "company": string, "location": string, "url": string, "remote": "remote"|"hybrid"|"onsite"|"unknown", "summary": string}]
 "summary" = 2–4 sentences on responsibilities and key requirements. If web search is unavailable, return [].`;
 
-async function hermesWebScout(profile: Profile, prefs: Preferences, h: RunHandle): Promise<RawJob[]> {
+async function webScout(profile: Profile, prefs: Preferences, h: RunHandle): Promise<RawJob[]> {
   const items = await askJson<any[]>({
     prompt: WEB_PROMPT(profileBrief(profile, { bullets: 1 }), preferencesBrief(prefs), 12),
-    toolsets: ['web'],
+    web: true,
     handle: h,
     timeoutSec: 420,
   });
@@ -314,7 +319,7 @@ Return ONLY a JSON array of individual posting pages (one job per URL, on the co
 Skip listing/search pages, aggregators and anything expired. If web search is unavailable, return [].`;
 
 export async function companySiteSearch(sites: TargetCompany[], prefs: Preferences, h: RunHandle): Promise<RawJob[]> {
-  const items = await askJson<any[]>({ prompt: SITE_PROMPT(sites, prefs.roles.length ? prefs.roles : ['designer'], preferencesBrief(prefs)), toolsets: ['web'], handle: h, timeoutSec: 420 });
+  const items = await askJson<any[]>({ prompt: SITE_PROMPT(sites, prefs.roles.length ? prefs.roles : ['designer'], preferencesBrief(prefs)), web: true, handle: h, timeoutSec: 420 });
   const out: RawJob[] = [];
   for (const it of (Array.isArray(items) ? items : []).slice(0, 4 * sites.length)) {
     const url = str(it?.url, 500);
@@ -342,7 +347,7 @@ Return ONLY a JSON array of individual posting pages (one job per URL, on the bo
 "company" is the employer, never the job board. Skip listing/search pages and anything expired. If web search is unavailable, return [].`;
 
 export async function boardSiteSearch(boards: CustomBoard[], prefs: Preferences, h: RunHandle): Promise<RawJob[]> {
-  const items = await askJson<any[]>({ prompt: BOARD_PROMPT(boards, prefs.roles.length ? prefs.roles : ['designer'], preferencesBrief(prefs)), toolsets: ['web'], handle: h, timeoutSec: 420 });
+  const items = await askJson<any[]>({ prompt: BOARD_PROMPT(boards, prefs.roles.length ? prefs.roles : ['designer'], preferencesBrief(prefs)), web: true, handle: h, timeoutSec: 420 });
   const out: RawJob[] = [];
   for (const it of (Array.isArray(items) ? items : []).slice(0, 5 * boards.length)) {
     const url = str(it?.url, 500);
@@ -394,7 +399,7 @@ export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] 
 
   setState({ running: true, phase: 'Searching job boards', progress: 0.05, found: 0, added: 0, startedAt: now(), finishedAt: undefined });
   // PhD positions are searched alongside, on their own track, when you've turned them on.
-  if (prefs.phd?.enabled && settings.hermes.webSearch) phdSearch({ quiet: true }).catch(() => {});
+  if (prefs.phd?.enabled && settings.ai.webSearch) phdSearch({ quiet: true }).catch(() => {});
   const h = startRun('scout', 'Scouting for new jobs');
   markRunning(h);
   const added: Job[] = [];
@@ -437,12 +442,12 @@ export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] 
 
     h.log(`Querying ${tasks.length} boards for: ${queries.join(', ')}`);
     const webPromise =
-      src.hermes_web && settings.hermes.webSearch
+      src.hermes_web && settings.ai.webSearch
         ? (async () => {
-            const wh = startRun('hermes_web', 'Hermes web search for openings');
+            const wh = startRun('hermes_web', 'Web search for openings');
             try {
               wh.log('Searching the open web with DuckDuckGo via Hermes');
-              const jobs = await hermesWebScout(profile, prefs, wh);
+              const jobs = await webScout(profile, prefs, wh);
               finishRun(wh, true, `${jobs.length} postings found`);
               return jobs;
             } catch (err: any) {
@@ -475,7 +480,7 @@ export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] 
 
     // Companies and boards whose own pages list nothing Talaria can read directly get a web search within that site.
     const searchWithin = (title: string, names: string[], search: (sh: RunHandle) => Promise<RawJob[]>) =>
-      names.length && settings.hermes.webSearch
+      names.length && settings.ai.webSearch
         ? (async () => {
             const sh = startRun('hermes_web', title);
             try {
@@ -507,10 +512,10 @@ export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] 
     const boardShortlist = candidates.slice(0, Math.max(maxNew + 6, 18));
     let total = boardShortlist.length;
     let scored = 0;
-    let webDone = !(src.hermes_web && settings.hermes.webSearch);
+    let webDone = !(src.hermes_web && settings.ai.webSearch);
     const progress = () => {
       const p = 0.36 + 0.6 * (scored / Math.max(1, total));
-      const phase = scored >= total && !webDone ? 'Waiting for Hermes web search' : `Hermes is scoring matches (${scored}/${total})`;
+      const phase = scored >= total && !webDone ? 'Waiting for web search' : `Hermes is scoring matches (${scored}/${total})`;
       setState({ progress: Math.min(0.97, p), phase, found: boardJobs.length, added: added.length });
     };
     progress();
@@ -599,7 +604,7 @@ export async function runScout(opts: ScoutOptions = {}): Promise<{ added: Job[] 
     if (webJobs.length) {
       const webCandidates = filterAndRank(webJobs, prefs, profile, { trustTitles: true }).filter(w => !known.has(dedupeKey(w.company, w.title))).slice(0, 16);
       webCandidates.forEach(c => known.add(dedupeKey(c.company, c.title)));
-      h.log(`Hermes web search: ${webJobs.length} postings → ${webCandidates.length} new candidates`);
+      h.log(`Web search: ${webJobs.length} postings → ${webCandidates.length} new candidates`);
       total += webCandidates.length;
       progress();
       await scoreAll(webCandidates, 8);
@@ -655,7 +660,7 @@ export function sourceLabel(s: SourceId) {
       company_site: 'the company website',
       custom_board: 'one of your job boards',
       academic: 'an academic job board',
-      hermes_web: 'Hermes web search',
+      hermes_web: 'Web search',
       linkedin: 'LinkedIn',
       manual: 'manual entry',
     } as Record<string, string>

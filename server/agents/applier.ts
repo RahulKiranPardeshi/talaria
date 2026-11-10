@@ -9,7 +9,7 @@ import type { Page } from 'playwright';
 import type { Job } from '../../shared/types.ts';
 import { DATA_DIR } from '../lib/paths.ts';
 import { newPage } from '../lib/browser.ts';
-import { askJson, finishRun, startRun, type RunHandle } from '../lib/hermes.ts';
+import { askJson, finishRun, startRun, type RunHandle } from '../lib/ai/index.ts';
 import { toast } from '../lib/events.ts';
 import { getJob, getPreferences, getProfile, listAnswers, now, updateJob } from '../lib/store.ts';
 import { compileLatex } from '../lib/latex.ts';

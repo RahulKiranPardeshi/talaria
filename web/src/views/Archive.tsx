@@ -45,7 +45,7 @@ export function ArchiveView() {
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Filter archive"
-            className="h-9 w-[200px] rounded-lg border border-line bg-card pr-3 pl-8 text-[13px] text-ink outline-none placeholder:text-faint focus:border-accent/50 focus:ring-[3px] focus:ring-accent/15"
+            className="h-9 w-[200px] border border-line bg-card pr-3 pl-8 text-[13px] text-ink outline-none placeholder:text-faint focus:border-accent/50 focus:ring-[3px] focus:ring-accent/15"
           />
         </div>
       </header>
@@ -69,7 +69,7 @@ export function ArchiveView() {
                     tabIndex={0}
                     onClick={() => openJob(job.id)}
                     onKeyDown={e => e.key === 'Enter' && openJob(job.id)}
-                    className="cursor-pointer rounded-[14px] outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                    className="cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
                   >
                     <JobCard job={job} />
                   </div>

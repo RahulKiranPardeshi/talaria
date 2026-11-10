@@ -1,12 +1,13 @@
 import * as React from 'react';
 import { Command } from 'cmdk';
 import * as RDialog from '@radix-ui/react-dialog';
-import { Activity, BarChart3, KanbanSquare, Moon, Plus, Search, Settings2, Sparkles, UserRound } from 'lucide-react';
+import { Activity, BarChart3, KanbanSquare, Moon, Plug, Plus, ScanSearch, Search, SlidersHorizontal, Sparkles, SquareUser } from 'lucide-react';
 import { startScout, useApp } from '@/lib/store';
 import { navigate, openJob } from '@/lib/router';
 import { fitScore, STATUS_META } from '@/lib/utils';
 import { CompanyLogo } from './brand';
 import { setThemePref, useTheme } from '@/lib/theme';
+import { openActivity } from '@/views/Activity';
 
 let setOpenGlobal: ((v: boolean) => void) | null = null;
 export const openPalette = () => setOpenGlobal?.(true);
@@ -34,13 +35,13 @@ export function CommandPalette() {
   };
 
   const list = Object.values(jobs).sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
-  const item = 'flex h-10 cursor-default items-center gap-3 rounded-lg px-3 text-[13.5px] text-ink-2 data-[selected=true]:bg-ink/[0.05] data-[selected=true]:text-ink dark:data-[selected=true]:bg-white/[0.07]';
+  const item = 'flex h-10 cursor-default items-center gap-3 px-3 text-[13.5px] text-ink-2 data-[selected=true]:bg-ink/[0.05] data-[selected=true]:text-ink dark:data-[selected=true]:bg-white/[0.07]';
 
   return (
     <RDialog.Root open={open} onOpenChange={setOpen}>
       <RDialog.Portal>
         <RDialog.Overlay className="fixed inset-0 z-50 bg-[#0b0b10]/30 backdrop-blur-[2px]" />
-        <RDialog.Content aria-describedby={undefined} className="fixed top-[14vh] left-1/2 z-50 w-[min(620px,calc(100vw-24px))] -translate-x-1/2 overflow-hidden rounded-2xl bg-raised shadow-pop outline-none">
+        <RDialog.Content aria-describedby={undefined} className="fixed top-[14vh] left-1/2 z-50 w-[min(620px,calc(100vw-24px))] -translate-x-1/2 overflow-hidden bg-raised shadow-pop outline-none">
           <RDialog.Title className="sr-only">Command palette</RDialog.Title>
           <Command loop>
             <div className="flex items-center gap-3 border-b border-line px-4">
@@ -63,13 +64,19 @@ export function CommandPalette() {
                   <BarChart3 className="size-4 text-muted" /> Applications summary
                 </Command.Item>
                 <Command.Item className={item} onSelect={() => run(() => navigate({ view: 'profile' }))}>
-                  <UserRound className="size-4 text-muted" /> Profile & preferences
+                  <SquareUser className="size-4 text-muted" /> Profile
                 </Command.Item>
-                <Command.Item className={item} onSelect={() => run(() => navigate({ view: 'activity' }))}>
+                <Command.Item className={item} keywords={['preferences', 'roles', 'sources', 'boards', 'companies']} onSelect={() => run(() => navigate({ view: 'search' }))}>
+                  <ScanSearch className="size-4 text-muted" /> Job search: what you want and where to look
+                </Command.Item>
+                <Command.Item className={item} keywords={['hermes', 'tasks', 'running', 'tokens', 'log']} onSelect={() => run(openActivity)}>
                   <Activity className="size-4 text-muted" /> Agent activity
                 </Command.Item>
                 <Command.Item className={item} onSelect={() => run(() => navigate({ view: 'settings' }))}>
-                  <Settings2 className="size-4 text-muted" /> Settings
+                  <SlidersHorizontal className="size-4 text-muted" /> Settings
+                </Command.Item>
+                <Command.Item className={item} keywords={['linkedin', 'gmail', 'voice', 'mcp']} onSelect={() => run(() => navigate({ view: 'settings', section: 'connections' }))}>
+                  <Plug className="size-4 text-muted" /> Connections: LinkedIn, Gmail, voice
                 </Command.Item>
                 <Command.Item className={item} onSelect={() => run(() => setThemePref(theme === 'dark' ? 'light' : 'dark'))}>
                   <Moon className="size-4 text-muted" /> Toggle dark mode
@@ -85,7 +92,7 @@ export function CommandPalette() {
                         <div className="truncate text-[12px] text-muted">{j.company}</div>
                       </div>
                       <span className="flex items-center gap-1.5 text-[11.5px] text-muted">
-                        <span className="size-1.5 rounded-full" style={{ background: STATUS_META[j.status].color }} />
+                        <span className="size-1.5 " style={{ background: STATUS_META[j.status].color }} />
                         {STATUS_META[j.status].label}
                       </span>
                       {fitScore(j) != null && <span className="w-7 text-right text-[12px] font-semibold text-ink-2 tabular-nums">{fitScore(j)}</span>}

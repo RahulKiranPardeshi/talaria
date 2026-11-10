@@ -6,13 +6,17 @@ import type { Bootstrap, Job, JobStatus, Packet, Preferences, Profile, Settings,
 import { DIST_DIR, UPLOAD_DIR } from './lib/paths.ts';
 import { addClient, toast } from './lib/events.ts';
 import * as store from './lib/store.ts';
-import { askJson, checkHermes, finishRun, getHermesStatus, listProviderModels, rateLimitedUntil, startRun, tryModel } from './lib/hermes.ts';
+import { askJson, checkAI, connectProvider, finishRun, getAIStatus, listAccounts, listProviderModels, rateLimitedUntil, startRun, tryModel } from './lib/ai/index.ts';
+import { cancelSignIn, providerInfo, saveApiKey, signInState, signOut, startSignIn } from './lib/ai/providers.ts';
+import { importHermesSignIns } from './lib/ai/migrate.ts';
+import { findHermes, folderSize, removeHermes } from './lib/ai/hermesLegacy.ts';
 import { buildProfileFromResume, canRereadResume, extractResumeText, rereadResume } from './agents/profile.ts';
 import { filterAndRank, getScoutState, runScout } from './agents/scout.ts';
 import { analyzeJob, answerQuestions, applyGapNotes, chatWithHermes, coverage, resumeText as resumePlainText, markApplied, moveJob, pauseJob, prepareApplication, refreshStaleDrafts, reorderColumn, restoreVersion, resumeJob, reviseCoverLetter, setGapNote, startDrafting } from './agents/pipeline.ts';
 import { followUpOnDiscoveries, startAutopilot } from './agents/autopilot.ts';
 import { checkBeforeApply, checkLiveness } from './agents/liveness.ts';
 import { generateReport } from './agents/report.ts';
+import { saveStory, sortStory } from './agents/story.ts';
 import { coverLetterPdf, resumePdf } from './lib/resumePdf.tsx';
 import { hydrateFromUrl, verifyBoard } from './sources/index.ts';
 import { detectBoard } from './sources/boards.ts';
@@ -49,7 +53,7 @@ app.get('/api/bootstrap', (_req, res) => {
     runs: store.listRuns().slice(0, 120),
     answers: store.listAnswers(),
     reports: store.listReports(),
-    hermes: getHermesStatus(),
+    ai: getAIStatus(),
     scout: getScoutState(),
     tools: { pdflatex: Boolean(findPdflatex()) },
   };
@@ -63,20 +67,130 @@ app.get('/api/setup/status', async (_req, res) => {
   res.json(status);
 });
 
-// ---------------- hermes ----------------
+// ---------------- AI ----------------
 
-app.post('/api/hermes/check', async (req, res) => {
-  res.json(await checkHermes(req.query.deep !== '0'));
+app.get('/api/ai/providers', (_req, res) => {
+  res.json(providerInfo());
 });
 
-app.post('/api/hermes/try', async (req, res) => {
+app.post('/api/ai/check', async (req, res) => {
+  res.json(await checkAI(req.query.deep !== '0'));
+});
+
+app.post('/api/ai/try', async (req, res) => {
   const { provider, model } = req.body || {};
   if (!provider || !model) return res.status(400).json({ error: 'provider and model are required' });
   res.json(await tryModel(String(provider), String(model)));
 });
 
-app.get('/api/hermes/models', async (_req, res) => {
+app.get('/api/ai/models', async (_req, res) => {
   res.json(await listProviderModels());
+});
+
+app.get('/api/ai/accounts', async (_req, res) => {
+  res.json(await listAccounts());
+});
+
+/** Make a tested provider and model the ones Talaria uses. */
+function useProvider(provider: string, model: string) {
+  const ai = store.getSettings().ai;
+  // A writing model from another provider wouldn't work after the switch.
+  store.setSettings({ ai: { ...ai, provider, model, tailorModel: provider === ai.provider ? ai.tailorModel : undefined } });
+  checkAI(true).catch(() => {});
+}
+
+// Test a provider and, when it answers, make it the one Talaria uses. Without a model, Talaria picks one the account accepts.
+app.post('/api/ai/connect', async (req, res) => {
+  const { provider, model } = req.body || {};
+  if (!provider) return res.status(400).json({ error: 'provider is required' });
+  const r = await connectProvider(String(provider), model ? String(model) : undefined);
+  if (r.ok && r.model) useProvider(String(provider), r.model);
+  res.json(r);
+});
+
+// Sign in to ChatGPT (in your browser) or GitHub Copilot (with a code). Progress also arrives as "signin" events.
+app.post('/api/ai/signin', async (req, res) => {
+  const provider = String(req.body?.provider || '');
+  try {
+    res.json(await startSignIn(provider));
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/api/ai/signin/:provider', (req, res) => {
+  res.json(signInState(req.params.provider) ?? null);
+});
+
+app.post('/api/ai/signin/:provider/cancel', (req, res) => {
+  cancelSignIn(req.params.provider);
+  res.json({ ok: true });
+});
+
+// Save an API key, test it and, when it answers, switch Talaria to it.
+app.post('/api/ai/key', async (req, res) => {
+  const provider = String(req.body?.provider || '');
+  const key = String(req.body?.key || '').trim();
+  if (!provider || !key) return res.status(400).json({ error: 'provider and key are required' });
+  try {
+    saveApiKey(provider, key);
+  } catch (err: any) {
+    return res.status(400).json({ error: err.message });
+  }
+  const r = await connectProvider(provider, req.body?.model ? String(req.body.model) : undefined);
+  if (r.ok && r.model) useProvider(provider, r.model);
+  // A key that doesn't work isn't kept (one that works but lacks a model is: another model will do).
+  else if (!r.modelRejected) signOut(provider);
+  res.json(r);
+});
+
+// ---------------- removing Hermes Agent (existing users, once) ----------------
+
+let hermesSize: { home: string; bytes: Promise<number> } | null = null;
+/** Counting a Hermes folder takes a while (often 5 GB in many small files), so it starts once and is shared. */
+function measureHermes(home: string) {
+  if (hermesSize?.home !== home) hermesSize = { home, bytes: folderSize(home) };
+  return hermesSize.bytes;
+}
+
+/** Whether to show the one-time offer, and how much removing Hermes Agent would free. */
+app.get('/api/hermes-cleanup', async (_req, res) => {
+  if (store.getSettings().hermesCleanup !== 'offer') return res.json({ show: false });
+  const found = findHermes();
+  if (!found) {
+    store.setSettings({ hermesCleanup: 'done' }); // already gone: nothing to offer, now or later
+    return res.json({ show: false });
+  }
+  res.json({ show: true, home: found.home, sizeBytes: await measureHermes(found.home) });
+});
+
+app.post('/api/hermes-cleanup/dismiss', (_req, res) => {
+  store.setSettings({ hermesCleanup: 'done' });
+  res.json({ ok: true });
+});
+
+app.post('/api/hermes-cleanup/remove', async (_req, res) => {
+  // Bring over any sign-ins not taken yet, before they're gone.
+  try {
+    importHermesSignIns();
+  } catch {}
+  const h = startRun('test', 'Removing Hermes Agent');
+  try {
+    const r = await removeHermes(t => h.log(t));
+    hermesSize = null;
+    finishRun(h, r.ok, r.message, r.ok ? undefined : r.message);
+    store.setSettings({ hermesCleanup: 'done' });
+    res.json(r);
+  } catch (err: any) {
+    finishRun(h, false, undefined, err.message);
+    res.status(500).json({ ok: false, freedBytes: 0, message: `Couldn't remove Hermes Agent: ${err.message}` });
+  }
+});
+
+app.post('/api/ai/signout', (req, res) => {
+  signOut(String(req.body?.provider || ''));
+  checkAI(false).catch(() => {});
+  res.json({ ok: true });
 });
 
 // ---------------- profile ----------------
@@ -129,6 +243,27 @@ app.put('/api/profile', (req, res) => {
   res.json(store.setProfile(next));
 });
 
+// Your answers to the story questions: saved now, woven into your story by Hermes in the background.
+app.post('/api/profile/story', (req, res) => {
+  const answers = req.body?.answers;
+  if (!answers || typeof answers !== 'object') return res.status(400).json({ error: 'answers are required' });
+  try {
+    saveStory(Object.fromEntries(Object.entries(answers).map(([k, v]) => [k, String(v ?? '')])), req.body?.again === true);
+    res.json(store.getProfile());
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// A story written before the questions existed, sorted into them from your own sentences (once).
+app.post('/api/profile/story/sort', async (_req, res) => {
+  try {
+    res.json(await sortStory());
+  } catch (err: any) {
+    res.status(400).json({ error: `Hermes couldn't sort your story: ${err.message.split('\n')[0]}` });
+  }
+});
+
 app.put('/api/preferences', (req, res) => {
   res.json(store.setPreferences(req.body as Partial<Preferences>));
 });
@@ -174,9 +309,9 @@ app.post('/api/preferences/suggest-companies', async (_req, res) => {
 });
 
 app.put('/api/settings', (req, res) => {
-  const before = store.getSettings().hermes;
+  const before = store.getSettings().ai;
   const next = store.setSettings(req.body as Partial<Settings>);
-  if (before.model !== next.hermes.model || before.provider !== next.hermes.provider) checkHermes(true).catch(() => {});
+  if (before.model !== next.ai.model || before.provider !== next.ai.provider) checkAI(true).catch(() => {});
   res.json(next);
 });
 
@@ -252,13 +387,13 @@ app.post('/api/jobs', async (req, res) => {
     if (!raw) {
       const paused = rateLimitedUntil();
       if (paused) {
-        finishRun(h, false, undefined, 'Hermes is paused by a rate limit');
+        finishRun(h, false, undefined, 'The AI is paused by a rate limit');
         const at = new Date(paused).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        return res.status(429).json({ error: `GitHub Copilot has Hermes paused until ${at}, so it can't read that page yet. Switch to “Paste details” to add it now — the fit analysis will run as soon as the pause ends.` });
+        return res.status(429).json({ error: `Your AI provider has Talaria paused until ${at}, so it can't read that page yet. Switch to “Paste details” to add it now — the fit analysis will run as soon as the pause ends.` });
       }
       try {
-        // We have the page text ourselves → Hermes only structures it (no web access needed).
-        // Otherwise fall back to Hermes's own web extraction.
+        // We have the page text ourselves → the AI only structures it (no web access needed).
+        // Otherwise the AI gets the web tools, to find the posting another way.
         const got = await askJson<any>({
           prompt:
             pageText.length >= 600
@@ -271,7 +406,7 @@ ${pageText.slice(0, 14000)}`
               : `Use web_extract to read this job posting: ${url}
 Return ONLY JSON: {"title": string, "company": string, "location": string, "remote": "remote"|"hybrid"|"onsite"|"unknown", "salary": string, "description": string}
 "description" = the full posting text (responsibilities, requirements, benefits) as clean Markdown with bullet points. If the page can't be read, return {"error": "<why>"}.`,
-          toolsets: pageText.length >= 600 ? undefined : ['web'],
+          web: pageText.length < 600,
           handle: h,
           timeoutSec: 240,
           priority: 1,
@@ -462,7 +597,8 @@ app.post('/api/jobs/:id/restore', (req, res) => {
 app.post('/api/jobs/:id/finalize', async (req, res) => {
   const j = store.getJob(req.params.id);
   if (!j?.packet) return job404(res);
-  const open = j.questions.filter(q => q.required && !q.answer?.trim()).length;
+  // Same rule as the UI's pendingQuestions: a question you left to Hermes ("Draft without answering") isn't open.
+  const open = j.questions.filter(q => q.required && !q.answer?.trim() && !q.skipped).length;
   if (open) return res.status(400).json({ error: `Answer the ${open} open question${open > 1 ? 's' : ''} first.` });
   // One careful look at the posting first, so you never land on a closed form.
   if (!req.body?.skipLiveCheck) {
@@ -689,7 +825,17 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 app.listen(PORT, '127.0.0.1', () => {
   console.log(`\n  ☤ Talaria API on http://127.0.0.1:${PORT}`);
   if (fs.existsSync(path.join(DIST_DIR, 'index.html'))) console.log(`  Open http://127.0.0.1:${PORT} in your browser\n`);
-  checkHermes(true).then(s => console.log(`  Hermes: ${s.ok ? `ready (${s.provider} · ${s.model})` : s.message}`));
+  try {
+    const brought = importHermesSignIns();
+    if (brought.length) console.log(`  Brought over your sign-ins from Hermes: ${brought.join(', ')}`);
+  } catch (err: any) {
+    console.warn(`  Couldn't bring over sign-ins from Hermes: ${err.message}`);
+  }
+  if (store.getSettings().hermesCleanup === 'offer') {
+    const found = findHermes();
+    if (found) measureHermes(found.home);
+  }
+  checkAI(true).then(s => console.log(`  AI: ${s.ok ? `ready (${s.provider} · ${s.model})` : s.message}`));
   startAutopilot();
   startMailWatch();
 });

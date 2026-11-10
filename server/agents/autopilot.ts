@@ -1,5 +1,5 @@
 import { getProfile, getSettings, listJobs } from '../lib/store.ts';
-import { rateLimitedUntil } from '../lib/hermes.ts';
+import { rateLimitedUntil } from '../lib/ai/index.ts';
 import { getScoutState, runScout } from './scout.ts';
 import { analyzeJob, prepareApplication } from './pipeline.ts';
 

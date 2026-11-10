@@ -39,7 +39,7 @@ export function ApplyKit({ job, open, onOpenChange }: { job: Job; open: boolean;
       <AnimatePresence mode="wait">
         {done ? (
           <motion.div key="done" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center py-10 text-center">
-            <motion.div initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', bounce: 0.5 }} className="grid size-16 place-items-center rounded-2xl bg-ok text-white shadow-lift">
+            <motion.div initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', bounce: 0.5 }} className="grid size-16 place-items-center bg-ok text-white shadow-lift">
               <PartyPopper className="size-8" />
             </motion.div>
             <div className="mt-5 font-display text-[23px] text-ink">Application sent</div>
@@ -75,7 +75,7 @@ export function ApplyKit({ job, open, onOpenChange }: { job: Job; open: boolean;
             </Step>
 
             <Step n={3} title="Paste these in">
-              <div className="overflow-hidden rounded-xl border border-line">
+              <div className="overflow-hidden border border-line">
                 {fields
                   .filter(([, v]) => v)
                   .map(([k, v]) => (
@@ -89,7 +89,7 @@ export function ApplyKit({ job, open, onOpenChange }: { job: Job; open: boolean;
               {qa.length > 0 && (
                 <div className="mt-3 space-y-2">
                   {qa.map((x, i) => (
-                    <div key={i} className="rounded-xl border border-line px-3.5 py-2.5">
+                    <div key={i} className="border border-line px-3.5 py-2.5">
                       <div className="flex items-start justify-between gap-3">
                         <span className="text-[12.5px] font-medium text-ink-2">{x.question}</span>
                         <CopyButton text={x.answer} />
@@ -120,7 +120,7 @@ function Step({ n, title, children, done, last }: { n: number; title: string; ch
   return (
     <div className="relative flex gap-4">
       {!last && <div className="absolute top-8 bottom-[-20px] left-[13px] w-px bg-line" />}
-      <span className={cn('relative grid size-7 shrink-0 place-items-center rounded-full text-[12.5px] font-semibold', done ? 'bg-ok text-white' : 'bg-ink text-bg')}>{done ? <Check className="size-3.5" strokeWidth={3} /> : n}</span>
+      <span className={cn('relative grid size-7 shrink-0 place-items-center text-[12.5px] font-semibold', done ? 'bg-ok text-white' : 'bg-ink text-bg')}>{done ? <Check className="size-3.5" strokeWidth={3} /> : n}</span>
       <div className="min-w-0 flex-1 pt-0.5">
         <div className="mb-2.5 text-[14px] font-semibold text-ink">{title}</div>
         {children}

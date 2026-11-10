@@ -95,7 +95,10 @@ export interface Profile {
   resumeText: string;
   resumeFileName?: string;
   latexSource?: string; // the user's own LaTeX resume, kept as the template for tailoring
-  story?: string; // who you are beyond the resume, in your words: the material for cover letters
+  story?: string; // who you are beyond the resume, woven by Hermes from your answers: the material for cover letters
+  storyAnswers?: Record<string, string>; // your answers to the story questions, keyed by question id
+  storyWovenAt?: string; // when Hermes last wove the answers into the story (unset: the story is the answers as written)
+  ideas?: ProfileIdeas; // suggestions from the resume, offered (never filled in) across the app
   updatedAt?: string;
 }
 
@@ -191,7 +194,7 @@ export interface Packet {
   generatedAt: string;
   model?: string;
   approvedAt?: string;
-  note?: string; // what produced this version ("First draft", "Warmer cover letter", …)
+  note?: string; // what produced this version ("First draft", "Warmer cover letter", â€¦)
   resumeHash?: string; // fingerprint of the resume this draft was tailored from (shared/resume.ts)
   latex?: string;
   latexStatus?: 'compiled' | 'uncompiled' | 'error';
@@ -334,7 +337,7 @@ export interface Job {
   updatedAt: string;
 }
 
-export type RunKind = 'profile' | 'scout' | 'score' | 'analyze' | 'tailor' | 'summary' | 'submit' | 'test' | 'hermes_web' | 'chat' | 'mail';
+export type RunKind = 'profile' | 'story' | 'scout' | 'score' | 'analyze' | 'tailor' | 'summary' | 'submit' | 'test' | 'hermes_web' | 'chat' | 'mail';
 
 export interface AgentRun {
   id: string;
@@ -352,7 +355,7 @@ export interface AgentRun {
   log: { at: string; text: string }[];
 }
 
-export interface HermesSettings {
+export interface AISettings {
   provider: string;
   model: string;
   tailorModel?: string; // optional stronger model just for resume/cover-letter writing
@@ -371,7 +374,7 @@ export interface AutopilotSettings {
 }
 
 export interface Settings {
-  hermes: HermesSettings;
+  ai: AISettings;
   autopilot: AutopilotSettings;
   onboarded: boolean;
   toured?: boolean; // false = the first-visit board tour hasn't been seen yet
@@ -381,6 +384,7 @@ export interface Settings {
   voice?: { connected: boolean; model?: string }; // voice typing via your own Gemini key (being tested)
   theme?: 'light' | 'dark' | 'system';
   onboarding?: OnboardingProgress;
+  hermesCleanup?: 'offer' | 'done'; // existing users: offer once to remove Hermes Agent, which Talaria no longer needs
 }
 
 /** Where you are in first-time setup, so closing the window halfway doesn't lose anything. */
@@ -399,18 +403,49 @@ export interface Report {
   markdown: string;
 }
 
-export interface HermesStatus {
-  installed: boolean;
+export interface AIStatus {
   ok: boolean;
-  version?: string;
   provider?: string;
   model?: string;
   message?: string;
   checkedAt?: string;
   latencyMs?: number;
-  browserTools?: boolean;
   checking?: boolean;
   rateLimitedUntil?: string; // provider rate limit: queue paused until this time
+}
+
+/** Ideas Hermes draws from a resume, shown as suggestions and examples so they fit this person's field. */
+export interface ProfileIdeas {
+  roles: string[]; // more job titles worth a look, beyond the ones filled in
+  topics: string[]; // domains, products and technologies they might love
+  dealBreakers: string[]; // what people in this field often rule out
+  locations: string[]; // cities, countries or regions that hire this profile and suit them
+}
+
+/** The AI accounts Talaria is signed in to, so setup can fill itself in. */
+export interface AIAccounts {
+  signedIn: string[]; // providers with a saved sign-in or key
+  models: Record<string, string[]>; // models each provider offers, best first
+  defaults: Record<string, string>; // the model Talaria picks for each provider
+}
+
+/** A provider Talaria can sign in to, and how. */
+export interface AIProviderInfo {
+  id: string;
+  label: string;
+  auth: 'chatgpt' | 'copilot' | 'key';
+  keyUrl?: string; // where to get a key
+  keyHint?: string;
+  webSearch: 'native' | 'talaria'; // the provider's own web search, or Talaria's
+}
+
+/** An in-app sign-in in progress (ChatGPT in the browser, or GitHub's device code). */
+export interface AISignIn {
+  provider: string;
+  state: 'waiting' | 'done' | 'error';
+  url?: string; // open this to sign in
+  userCode?: string; // GitHub: type this code on the page
+  message?: string;
 }
 
 export interface ScoutState {
@@ -439,7 +474,7 @@ export interface Bootstrap {
   runs: AgentRun[];
   answers: AnswerBankItem[];
   reports: Report[];
-  hermes: HermesStatus;
+  ai: AIStatus;
   scout: ScoutState;
   tools: { pdflatex: boolean };
 }
@@ -453,6 +488,7 @@ export type ServerEvent =
   | { type: 'settings'; settings: Settings }
   | { type: 'answers'; answers: AnswerBankItem[] }
   | { type: 'reports'; reports: Report[] }
-  | { type: 'hermes'; hermes: HermesStatus }
+  | { type: 'ai'; ai: AIStatus }
+  | { type: 'signin'; signin: AISignIn }
   | { type: 'scout'; scout: ScoutState }
   | { type: 'toast'; level: 'info' | 'success' | 'error'; text: string };

@@ -5,7 +5,7 @@
 //    the web within that site for your roles (scout.ts).
 
 import type { CustomBoard, Preferences } from '../../shared/types.ts';
-import { askJson } from '../lib/hermes.ts';
+import { askJson } from '../lib/ai/index.ts';
 import { newId } from '../lib/store.ts';
 import { cleanHtml, decodeEntities, guessRemote, htmlToText } from '../lib/text.ts';
 import { harvestLinks, roleMatcher, searchTerms } from './companies.ts';

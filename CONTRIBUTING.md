@@ -7,7 +7,7 @@ Thanks for helping. Bug reports, fixes for Mac and Linux, new job-board sources 
 Open an [issue](https://github.com/sehgalbhavya/talaria/issues/new/choose) and include:
 
 - what you did, what you expected, and what happened instead
-- your OS, `node --version` and `hermes --version`
+- your OS, `node --version` and which AI account you use (ChatGPT, Copilot, an API key)
 - the text from the terminal window, and anything relevant on Talaria's **Activity** page
 
 **Never paste anything from your `data/` folder, your resume, API keys or app passwords.** Remove names and email addresses from logs before sharing.
@@ -44,7 +44,7 @@ TALARIA_DATA_DIR=./data-dev npm run dev
 
 - **Nothing reaches an employer without the user pressing Finalize.** Autopilot may search and draft, never submit.
 - **Never guess legal or personal answers** (work authorization, visas, demographics) on application forms.
-- All AI calls go through `server/lib/hermes.ts`. Don't add direct calls to a model provider.
+- All AI calls go through `server/lib/ai/` (`callAI` / `askJson`). Don't add direct calls to a model provider elsewhere.
 - User data lives only under `TALARIA_DATA_DIR`. Don't write it anywhere else, and never commit it.
 - Match the style of the file you're editing. UI text is plain, friendly English for people who aren't technical.
 - New job sources should use public, key-free feeds and behave politely (low request rates, no scraping behind logins).

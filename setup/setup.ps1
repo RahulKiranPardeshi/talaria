@@ -17,13 +17,11 @@ $DataDir = if ($env:TALARIA_DATA_DIR) { $env:TALARIA_DATA_DIR } else { Join-Path
 $RuntimeNode = Join-Path $Root 'runtime\node'
 $Marker = Join-Path $DataDir 'setup.json'
 $LogFile = Join-Path $DataDir 'setup-log.txt'
-$HermesBin = Join-Path $env:LOCALAPPDATA 'hermes\bin'
 $MinNode = [version]'20.19.0'
 
 function Add-ToPath([string]$Dir) {
   if ((Test-Path $Dir) -and -not (($env:PATH -split ';') -contains $Dir)) { $env:PATH = "$Dir;$env:PATH" }
 }
-Add-ToPath $HermesBin
 Add-ToPath $RuntimeNode
 
 # ---------------- what's on this computer ----------------
@@ -41,8 +39,6 @@ function Test-Node {
   $v = Get-NodeVersion
   return [bool]($v -and $v -ge $MinNode)
 }
-
-function Test-Hermes { return [bool]((Test-Path (Join-Path $HermesBin 'hermes.exe')) -or (Get-Command hermes -ErrorAction SilentlyContinue)) }
 
 function Test-Packages { return Test-Path (Join-Path $Root 'node_modules\.package-lock.json') }
 
@@ -67,8 +63,6 @@ function Test-Latex {
 $Items = @(
   [ordered]@{ Id = 'node'; SizeMB = 30; Name = 'Node.js'; Required = $true; Default = $true; Size = 'about 30 MB'
     What = 'Runs Talaria. A private copy goes in the Talaria folder; nothing else on your computer changes.'; Present = (Test-Node) },
-  [ordered]@{ Id = 'hermes'; SizeMB = 1000; Name = 'Hermes, the AI assistant'; Required = $true; Default = $true; Size = 'about 1 GB'
-    What = 'Reads your resume, scores jobs and writes your applications. Installed by its own official installer.'; Present = (Test-Hermes) },
   [ordered]@{ Id = 'packages'; SizeMB = 200; Name = "Talaria's packages"; Required = $true; Default = $true; Size = 'about 200 MB'
     What = 'The building blocks Talaria is made of. They go in the Talaria folder.'; Present = (Test-Packages) },
   [ordered]@{ Id = 'chromium'; SizeMB = 150; Name = 'Browser for applications'; Required = $false; Default = $true; Size = 'about 150 MB'
@@ -81,10 +75,10 @@ if (-not $Show -and -not $missingRequired) {
   # Everything required is here. The very first time, offer the application browser if it's missing; after that,
   # stay out of the way (and skip that check, the slow one, so starting Talaria stays quick).
   if (Test-Path $Marker) { exit 0 }
-  $Items[3].Present = Test-Chromium
-  if ($Items[3].Present) { New-Item -ItemType Directory -Force $DataDir | Out-Null; '{"done": true}' | Set-Content $Marker; exit 0 }
+  $Items[2].Present = Test-Chromium
+  if ($Items[2].Present) { New-Item -ItemType Directory -Force $DataDir | Out-Null; '{"done": true}' | Set-Content $Marker; exit 0 }
 }
-if (-not $Items[3].Present) { $Items[3].Present = Test-Chromium }
+if (-not $Items[2].Present) { $Items[2].Present = Test-Chromium }
 
 # ---------------- the window ----------------
 
@@ -362,13 +356,6 @@ $Steps = @{
     Add-ToPath $RuntimeNode
     Write-Log "Node.js is in $RuntimeNode ($(& (Join-Path $RuntimeNode 'node.exe') --version))"
   }
-  hermes = {
-    Set-Current -1 "Running Hermes' official installer. This is the longest step, often 5 to 15 minutes."
-    $cmd = "[Net.ServicePointManager]::SecurityProtocol = 'Tls12'; `$s = Invoke-RestMethod 'https://hermes-agent.nousresearch.com/install.ps1'; & ([scriptblock]::Create(`$s)) -NonInteractive"
-    Invoke-Program 'powershell.exe' "-NoProfile -ExecutionPolicy Bypass -Command `"$cmd`"" 'Installing Hermes'
-    Add-ToPath $HermesBin
-    if (-not (Test-Hermes)) { throw "Hermes' installer finished, but Hermes isn't where it should be ($HermesBin)." }
-  }
   packages = {
     Set-Current -1 "Installing Talaria's packages, usually a minute or two"
     Invoke-Program 'cmd.exe' '/d /s /c "npm ci --no-audit --no-fund"' "Installing Talaria's packages"
@@ -420,7 +407,7 @@ function Start-Install {
   foreach ($it in $Items) { if ($it.Toggle) { $it.Toggle.Enabled = $false } }
   $kicker.Text = 'INSTALLING'; $kicker.ForeColor = $T::Gold
   $title.Text = 'Setting up Talaria...'
-  $subtitle.Text = 'This can take a while, mostly for Hermes. You can keep using your computer; Cancel stops it safely.'
+  $subtitle.Text = 'This usually takes a few minutes. You can keep using your computer; Cancel stops it safely.'
   $installBtn.Text = 'Installing...'
   Write-Log "Installing: $(($planned | ForEach-Object { $_.Name }) -join ', ')"
   $i = 0

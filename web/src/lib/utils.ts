@@ -72,7 +72,7 @@ export const SOURCE_LABEL: Record<SourceId, string> = {
   company_site: 'Company website',
   custom_board: 'Your job board',
   academic: 'Academic job boards',
-  hermes_web: 'Hermes web',
+  hermes_web: 'Web search',
   linkedin: 'LinkedIn',
   manual: 'Added by you',
 };

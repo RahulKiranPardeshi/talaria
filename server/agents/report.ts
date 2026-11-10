@@ -1,5 +1,5 @@
 import type { Job, Report } from '../../shared/types.ts';
-import { callHermes, finishRun, startRun } from '../lib/hermes.ts';
+import { callAI, finishRun, startRun } from '../lib/ai/index.ts';
 import { addReport, getProfile, listJobs, newId, now } from '../lib/store.ts';
 
 export function funnel(jobs: Job[]) {
@@ -36,7 +36,7 @@ export async function generateReport(days = 7): Promise<Report> {
     const profile = getProfile();
 
     h.log(`Summarising ${inPeriod.length} applications`);
-    const res = await callHermes({
+    const res = await callAI({
       handle: h,
       prompt: `You are a sharp, encouraging job-search coach writing a ${days}-day progress summary for ${profile?.name || 'the candidate'} (${profile?.headline || ''}).
 

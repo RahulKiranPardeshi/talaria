@@ -75,7 +75,7 @@ export function BoardTour({ force, onClose }: { force?: boolean; onClose?: () =>
       <div className="mt-6 flex items-center justify-between">
         <div className="flex gap-1.5">
           {SLIDES.map((_, n) => (
-            <span key={n} className={cn('h-1.5 rounded-full transition-all', n === i ? 'w-5 bg-ink' : 'w-1.5 bg-ink/20')} />
+            <span key={n} className={cn('h-1.5 transition-all', n === i ? 'w-5 bg-ink' : 'w-1.5 bg-ink/20')} />
           ))}
         </div>
         <div className="flex gap-2">
