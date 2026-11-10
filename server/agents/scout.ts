@@ -3,6 +3,7 @@ import { readBoard } from '../sources/boards.ts';
 import { companyBoard, readPosting } from '../sources/companies.ts';
 import { phdSearch } from './phd.ts';
 import { wantsJobs } from '../../shared/track.ts';
+import { findPlace, placesContaining } from '../../shared/places.ts';
 import * as S from '../sources/index.ts';
 import { scoutLinkedIn } from './linkedin.ts';
 import type { RawJob } from '../sources/index.ts';
@@ -118,6 +119,9 @@ export function candidateRegions(prefs: Preferences, profile: Profile | null): S
   for (const l of sources) {
     for (const [key, aliases] of Object.entries(LOC_ALIASES)) if (l.includes(key)) aliases.forEach(a => out.add(a));
     for (const part of l.split(/[,/|·]/).map(s => s.trim())) if (part.length > 1 && part !== 'remote') out.add(part);
+    // "Remote (EU)" or "Remote, Nordics" is open to someone in Stockholm.
+    const place = findPlace(l);
+    if (place) for (const p of [place, ...placesContaining(place)]) [p.name, ...p.aliases].forEach(n => out.add(n.toLowerCase()));
   }
   const joined = [...out].join(' ');
   for (const [re, regions] of REGION_EXPAND) if (re.test(joined)) regions.forEach(r => out.add(r));
@@ -140,7 +144,8 @@ function locationMatches(jobLoc: string, prefLocs: string[]): boolean {
   const l = ` ${jobLoc.toLowerCase()} `;
   return prefLocs.some(p => {
     const key = p.toLowerCase().split(',')[0].trim();
-    const opts = LOC_ALIASES[key] || [key];
+    // A known place covers its cities, other spellings and, for regions, every country in it.
+    const opts = [...(findPlace(p)?.terms || []), ...(LOC_ALIASES[key] || [key])];
     return opts.some(o => new RegExp(`[^a-z]${o.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^a-z]`).test(l));
   });
 }

@@ -5,7 +5,8 @@
 
 import type { Page } from 'playwright';
 import type { Preferences } from '../../shared/types.ts';
-import { browser, humanPause, newPage } from '../lib/browser.ts';
+import { browser, browserName, humanPause, newPage } from '../lib/browser.ts';
+import { toast } from '../lib/events.ts';
 import { getSettings, setSettings, now } from '../lib/store.ts';
 import { cleanHtml, guessRemote, htmlToText } from '../lib/text.ts';
 import { hydrateFromUrl, type RawJob } from '../sources/index.ts';
@@ -28,6 +29,7 @@ export async function connectLinkedIn(): Promise<{ connected: boolean }> {
   const page = await newPage();
   await page.goto('https://www.linkedin.com/login', { waitUntil: 'domcontentloaded' });
   await page.bringToFront();
+  toast('info', `Sign in to LinkedIn in the ${browserName()} window that just opened`);
   const deadline = Date.now() + 5 * 60_000;
   while (Date.now() < deadline) {
     await new Promise(r => setTimeout(r, 2000));

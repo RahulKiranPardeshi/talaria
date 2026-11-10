@@ -7,17 +7,20 @@ import { api } from '@/lib/api';
 import { useApp } from '@/lib/store';
 import { navigate } from '@/lib/router';
 import { cn } from '@/lib/utils';
-import { Button, ChipInput, Field, Input, Segmented, Switch, Textarea } from '@/components/ui';
+import { Button, ChipInput, Field, Input, Segmented, SuggestInput, Switch, Textarea } from '@/components/ui';
+import { countryOptions, placeOptions } from '@/lib/suggest';
+import { findPlace } from '@shared/places';
+import { REQUIRED_STORY_QUESTIONS, STORY_QUESTIONS } from '@shared/story';
 import { Logo } from '@/components/brand';
 import { useElapsed } from '@/components/drawer/hooks';
 import { BOARDS, SourcesEditor } from '@/views/Profile';
 import { ConnectStep, FooterSlot, NextButton, SkipLink, StepFooter, StepHeader, WelcomeStep } from '@/views/OnboardingSetup';
-import { ModelSelect } from '@/views/Settings';
+import { GmailSection, LinkedInSection, ModelSelect } from '@/views/Settings';
 
 // The sidebar's sections and the screens inside them. Every step number on screen comes from here.
-const SECTIONS = ['Welcome', 'Connect the AI', 'Your resume', 'Your story', "What you're after", 'Is this you?', 'Where to look', 'Review & start'];
+const SECTIONS = ['Welcome', 'Connect the AI', 'Your resume', 'Your story', "What you're after", 'Is this you?', 'Where to look', 'Your accounts', 'Review & start'];
 
-type Screen = 'welcome' | 'connect' | 'resume' | 'story' | 'kind' | 'roles' | 'where' | 'matters' | 'phd' | 'you' | 'sources' | 'launch';
+type Screen = 'welcome' | 'connect' | 'resume' | 'story' | 'kind' | 'roles' | 'where' | 'matters' | 'phd' | 'you' | 'sources' | 'accounts' | 'launch';
 
 const wantsPhd = (p: Preferences) => Boolean(p.lookingFor?.includes('phd'));
 
@@ -34,7 +37,8 @@ const SCREENS: { id: Screen; section: number; when?: (p: Preferences) => boolean
   { id: 'phd', section: 4, when: wantsPhd },
   { id: 'you', section: 5 },
   { id: 'sources', section: 6, when: wantsJobs },
-  { id: 'launch', section: 7 },
+  { id: 'accounts', section: 7 },
+  { id: 'launch', section: 8 },
 ];
 
 /** The screens that apply to you right now, read fresh so a choice you just saved counts. */
@@ -291,6 +295,7 @@ export function Onboarding() {
                 {screen === 'phd' && <PhdStep {...nav} />}
                 {screen === 'you' && <ProfileCheckStep {...nav} />}
                 {screen === 'sources' && <SourcesStep {...nav} />}
+                {screen === 'accounts' && <AccountsStep {...nav} />}
                 {screen === 'launch' && <LaunchStep {...nav} />}
               </motion.div>
             </AnimatePresence>
@@ -451,35 +456,26 @@ function ResumeStep({ kicker, next, back }: Nav) {
 
 // ---------------- 4. Story ----------------
 
-const STORY_QUESTIONS = [
-  { id: 'why', q: 'Why do you do this kind of work?', hint: 'What pulled you in? A moment, a person or a project that shaped you.', placeholder: 'e.g. I started by fixing the family computer, then built a website for my school club…' },
-  { id: 'proud', q: 'What are you proudest of?', hint: "Something you made or did, at work or not, and why it mattered to you.", placeholder: 'e.g. Leading the redesign of our checkout, which halved support tickets…' },
-  { id: 'next', q: 'What do you want next, and why now?', hint: 'The problems, team or kind of company you want to be part of.', placeholder: "e.g. A small team where I can own a product end to end, because…" },
-  { id: 'life', q: 'Who are you outside work?', hint: 'What you make or do for fun, what you care about, products you love using.', placeholder: 'e.g. I bake sourdough, run on weekends and keep a sketchbook of app ideas…' },
-];
-
-const composeStory = (answers: Record<string, string> = {}) =>
-  STORY_QUESTIONS.map(q => answers[q.id]?.trim())
-    .filter(Boolean)
-    .join('\n\n');
+/** Hand your answers to Hermes to weave into your story (it skips answers it has already woven). */
+const weaveStory = (answers: Record<string, string>) => api.post('/api/profile/story', { answers }, { quiet: true }).catch(() => {});
 
 function StoryStep({ kicker, next, back }: Nav) {
   const stored = useApp(s => s.settings?.onboarding?.story);
   const hasProfile = useApp(s => Boolean(s.profile));
   const [answers, setAnswers] = React.useState<Record<string, string>>(stored || {});
-  const filled = STORY_QUESTIONS.filter(q => answers[q.id]?.trim()).length;
+  const filled = REQUIRED_STORY_QUESTIONS.filter(q => answers[q.id]?.trim()).length;
 
   const save = async (then: () => void) => {
     await saveProgress({ story: answers });
-    const story = composeStory(answers);
-    if (hasProfile && story) await api.put('/api/profile', { story }, { quiet: true }).catch(() => {});
+    // Still reading the resume? The answers are woven when you confirm your profile.
+    if (hasProfile && Object.values(answers).some(a => a?.trim())) weaveStory(answers);
     then();
   };
 
   return (
     <div>
       <StepHeader kicker={kicker} title="Tell us your story.">
-        Your resume says what you did. This is who you are, and your cover letters are written from it. Answer like you'd talk to a friend; a few honest sentences beat a polished paragraph. Skip anything you like.
+        Your resume says what you did. This is who you are: Hermes weaves your answers into your story, and your cover letters are written from it. Answer like you'd talk to a friend; a few honest sentences beat a polished paragraph. Skip anything you like.
       </StepHeader>
 
       <div className="space-y-5">
@@ -492,7 +488,7 @@ function StoryStep({ kicker, next, back }: Nav) {
 
       <StepFooter back={() => save(back)}>
         <SkipLink onClick={() => save(next)} />
-        <NextButton disabled={filled < STORY_QUESTIONS.length} title={filled < STORY_QUESTIONS.length ? `${filled} of ${STORY_QUESTIONS.length} answered` : undefined} onClick={() => save(next)}>
+        <NextButton disabled={filled < REQUIRED_STORY_QUESTIONS.length} title={filled < REQUIRED_STORY_QUESTIONS.length ? `${filled} of ${REQUIRED_STORY_QUESTIONS.length} answered` : undefined} onClick={() => save(next)}>
           Next
         </NextButton>
       </StepFooter>
@@ -512,11 +508,39 @@ const SENIORITY: { value: Seniority; label: string }[] = [
 
 type PrefsProps = { prefs: Preferences; onChange: (p: Partial<Preferences>) => void };
 
+const example = (list: string[], fallback: string) => `e.g. ${list.length ? list.slice(0, 2).join(', ') : fallback}`;
+
+/**
+ * Suggestions and examples for the preference fields, from what Hermes read in your resume, so a
+ * nurse sees nursing roles and a developer sees developer ones. Before the resume is read (or for
+ * an older profile), they fall back to what you've told Talaria so far.
+ */
+export function useIdeas(prefs: Preferences) {
+  const profile = useApp(s => s.profile);
+  const ideas = profile?.ideas;
+  const kinds = prefs.lookingFor?.length ? prefs.lookingFor : ['full_time'];
+  // Deal-breakers that follow from your answers, whatever your field.
+  const fromAnswers = [
+    ...(kinds.includes('internship') ? ['unpaid'] : []),
+    ...(prefs.needsSponsorship ? ['security clearance', 'citizens only', 'no visa sponsorship'] : []),
+    ...(kinds.includes('full_time') && !ideas?.dealBreakers.length ? ['commission only'] : []),
+  ];
+  const currentEmployer = profile?.experience.find(e => /present|current|now|ongoing/i.test(e.end || ""))?.company;
+  return {
+    roles: ideas?.roles.length ? ideas.roles : profile ? [] : ['Software Engineer', 'Data Analyst', 'Product Manager', 'UX Designer'],
+    topics: ideas?.topics.length ? ideas.topics : (profile?.skills || []).slice(0, 8),
+    dealBreakers: [...new Set([...(ideas?.dealBreakers || []), ...fromAnswers])],
+    locations: ideas?.locations || [],
+    skipCompanies: [currentEmployer].filter((c): c is string => Boolean(c)),
+  };
+}
+
 function RolesFields({ prefs, onChange }: PrefsProps) {
+  const ideas = useIdeas(prefs);
   return (
     <>
       <Field label="Roles you're targeting" hint="Hermes suggests these from your resume. Edit freely; press Enter to add.">
-        <ChipInput value={prefs.roles} onChange={roles => onChange({ roles })} placeholder="e.g. Frontend Engineer" suggestions={['Software Engineer', 'Frontend Engineer', 'Backend Engineer', 'Full Stack Engineer', 'Data Analyst', 'ML Engineer'].filter(s => !prefs.roles.length || prefs.roles.length < 6)} />
+        <ChipInput value={prefs.roles} onChange={roles => onChange({ roles })} placeholder={example(ideas.roles.slice(0, 1), 'Frontend Engineer')} suggestions={prefs.roles.length < 6 ? ideas.roles : []} />
       </Field>
       <Field label="Seniority">
         <div className="flex flex-wrap gap-1.5">
@@ -540,11 +564,12 @@ function RolesFields({ prefs, onChange }: PrefsProps) {
 }
 
 function WhereFields({ prefs, onChange }: PrefsProps) {
+  const ideas = useIdeas(prefs);
   return (
     <>
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Locations" hint="Cities or countries. Remote roles are always considered.">
-          <ChipInput value={prefs.locations} onChange={locations => onChange({ locations })} placeholder="e.g. Berlin, Germany" />
+        <Field label="Locations" hint="Cities, countries or regions like the Nordics. Remote roles are always considered.">
+          <ChipInput value={prefs.locations} onChange={locations => onChange({ locations })} placeholder="Start typing a city, country or region" search={placeOptions} suggestions={ideas.locations} />
         </Field>
         <Field label="Work mode">
           <Segmented<RemotePreference>
@@ -589,15 +614,26 @@ function WhereFields({ prefs, onChange }: PrefsProps) {
 }
 
 function TopicsFields({ prefs, onChange }: PrefsProps) {
+  const ideas = useIdeas(prefs);
   return (
     <div className="grid gap-5 sm:grid-cols-2">
       <Field label="Topics you'd love" hint="Boosts matching roles.">
-        <ChipInput value={prefs.includeKeywords} onChange={includeKeywords => onChange({ includeKeywords })} placeholder="e.g. fintech, React" />
+        <ChipInput value={prefs.includeKeywords} onChange={includeKeywords => onChange({ includeKeywords })} placeholder={example(ideas.topics, 'fintech, React')} suggestions={ideas.topics} />
       </Field>
       <Field label="Deal-breakers" hint="Jobs mentioning these are skipped.">
-        <ChipInput value={prefs.excludeKeywords} onChange={excludeKeywords => onChange({ excludeKeywords })} placeholder="e.g. crypto, unpaid" />
+        <ChipInput value={prefs.excludeKeywords} onChange={excludeKeywords => onChange({ excludeKeywords })} placeholder={example(ideas.dealBreakers, 'crypto, unpaid')} suggestions={ideas.dealBreakers} />
       </Field>
     </div>
+  );
+}
+
+/** Companies you'd rather not hear from, with your current employer offered first. */
+export function SkipCompaniesField({ prefs, onChange }: PrefsProps) {
+  const ideas = useIdeas(prefs);
+  return (
+    <Field label="Companies to skip" hint="Your current employer, places you've already ruled out.">
+      <ChipInput value={prefs.excludeCompanies} onChange={excludeCompanies => onChange({ excludeCompanies })} placeholder={example(ideas.skipCompanies, 'your current employer')} suggestions={ideas.skipCompanies} />
+    </Field>
   );
 }
 
@@ -787,9 +823,7 @@ function MattersStep({ kicker, next, back }: Nav) {
       <StillReadingNote />
       <div className="space-y-5">
         <TopicsFields prefs={draft} onChange={change} />
-        <Field label="Companies to skip" hint="Your current employer, places you've already ruled out.">
-          <ChipInput value={draft.excludeCompanies} onChange={excludeCompanies => change({ excludeCompanies })} placeholder="e.g. current employer" />
-        </Field>
+        <SkipCompaniesField prefs={draft} onChange={change} />
       </div>
       <StepFooter back={back}>
         <NextButton loading={saving} onClick={() => save(next)} />
@@ -803,7 +837,9 @@ function PhdStep({ kicker, next, back }: Nav) {
   const phd = draft.phd || { enabled: true, fields: [], countries: [] };
   const set = (patch: Partial<typeof phd>) => change({ phd: { ...phd, enabled: true, ...patch } });
   // Suggest from what Hermes found in your own resume, never a fixed list.
-  const ideas = draft.includeKeywords.filter(k => !phd.fields.includes(k));
+  const resumeIdeas = useIdeas(draft);
+  const ideas = [...new Set([...draft.includeKeywords, ...resumeIdeas.topics])].filter(k => !phd.fields.includes(k));
+  const where = resumeIdeas.locations.filter(l => findPlace(l)?.kind !== 'city');
   return (
     <div>
       <StepHeader kicker={kicker} title="What would you love to research?">
@@ -815,7 +851,7 @@ function PhdStep({ kicker, next, back }: Nav) {
           <ChipInput value={phd.fields} onChange={fields => set({ fields })} placeholder="e.g. Human-computer interaction" suggestions={ideas} />
         </Field>
         <Field label="Where" hint="Countries or cities. Leave empty for anywhere in Europe.">
-          <ChipInput value={phd.countries} onChange={countries => set({ countries })} placeholder="e.g. Germany, Netherlands" />
+          <ChipInput value={phd.countries} onChange={countries => set({ countries })} placeholder="Start typing a country or region" search={countryOptions} suggestions={where} />
         </Field>
       </div>
       <StepFooter back={back}>
@@ -846,8 +882,8 @@ function ProfileCheckStep({ kicker, next, back, go }: Nav) {
     if (!p) return;
     setSaving(true);
     try {
-      const story = composeStory(answers);
-      await api.put('/api/profile', { name: p.name, headline: p.headline, email: p.email, phone: p.phone, location: p.location, summary: p.summary, skills: p.skills, ...(story ? { story } : {}) });
+      await api.put('/api/profile', { name: p.name, headline: p.headline, email: p.email, phone: p.phone, location: p.location, summary: p.summary, skills: p.skills });
+      if (answers && Object.values(answers).some(a => a?.trim())) weaveStory(answers);
       next();
     } finally {
       setSaving(false);
@@ -899,7 +935,7 @@ function ProfileCheckStep({ kicker, next, back, go }: Nav) {
             <Input value={p.name} onChange={e => up({ name: e.target.value })} />
           </Field>
           <Field label="Based in">
-            <Input value={p.location} onChange={e => up({ location: e.target.value })} placeholder="e.g. Berlin, Germany" />
+            <SuggestInput value={p.location} onChange={location => up({ location })} search={placeOptions} placeholder="Start typing a city or country" />
           </Field>
           <Field label="Email">
             <Input type="email" value={p.email} onChange={e => up({ email: e.target.value })} />
@@ -982,7 +1018,30 @@ function SourcesStep({ kicker, next, back }: Nav) {
   );
 }
 
-// ---------------- 8. Review & start ----------------
+// ---------------- 8. Your accounts ----------------
+
+function AccountsStep({ kicker, next, back }: Nav) {
+  const linkedin = useApp(s => Boolean(s.settings?.linkedin.connected));
+  const gmail = useApp(s => Boolean(s.settings?.gmail?.connected));
+  const jobs = useApp(s => Boolean(s.preferences && wantsJobs(s.preferences)));
+  return (
+    <div>
+      <StepHeader kicker={kicker} title="Connect your accounts.">
+        Both are optional, and you can do it later in Settings. {jobs ? 'LinkedIn adds its job postings to your searches. ' : ''}Gmail lets Talaria notice replies, so rejections and interview invitations update your board by themselves.
+      </StepHeader>
+      <div className="space-y-6">
+        {jobs && <LinkedInSection />}
+        <GmailSection />
+      </div>
+      <StepFooter back={back}>
+        {!(linkedin || gmail) && <SkipLink onClick={next} />}
+        <NextButton onClick={next} disabled={!(linkedin || gmail)} title={linkedin || gmail ? undefined : 'Connect one, or skip for now'} />
+      </StepFooter>
+    </div>
+  );
+}
+
+// ---------------- 9. Review & start ----------------
 
 const REMOTE_LABEL: Record<RemotePreference, string> = { any: 'Any work mode', remote_or_hybrid: 'Remote or hybrid', remote_only: 'Remote only', onsite: 'On-site' };
 
@@ -994,7 +1053,7 @@ function LaunchStep({ kicker, back, go }: Nav) {
   const [autopilot, setAutopilot] = React.useState(true);
   const [busy, setBusy] = React.useState(false);
   const boards = BOARDS.filter(b => prefs.sources[b.id]).length + (prefs.customBoards || []).filter(b => b.enabled).length;
-  const answered = STORY_QUESTIONS.filter(q => story[q.id]?.trim()).length;
+  const answered = REQUIRED_STORY_QUESTIONS.filter(q => story[q.id]?.trim()).length;
 
   const start = async () => {
     setBusy(true);
@@ -1012,13 +1071,18 @@ function LaunchStep({ kicker, back, go }: Nav) {
   type Row = { label: string; value: string; edit: Screen; show?: boolean };
   const rows = ([
     { label: 'You', value: profile ? [profile.name, profile.headline].filter(Boolean).join(' · ') : 'Hermes is still reading your resume', edit: 'you' },
-    { label: 'Your story', value: answered ? `${answered} of ${STORY_QUESTIONS.length} questions answered` : 'Not written yet (Hermes will ask when it writes a cover letter)', edit: 'story' },
+    { label: 'Your story', value: answered ? `${answered} of ${REQUIRED_STORY_QUESTIONS.length} questions answered` : 'Not written yet (Hermes will ask when it writes a cover letter)', edit: 'story' },
     { label: 'Looking for', value: kinds.join(', ') || 'Full-time roles', edit: 'kind' },
     { label: 'Roles', value: `${prefs.roles.join(', ') || 'None yet'} · ${prefs.seniority.map(s => SENIORITY.find(x => x.value === s)?.label).join(', ')}`, edit: 'roles', show: jobs },
     { label: 'Where', value: [prefs.locations.join(', ') || 'Anywhere', REMOTE_LABEL[prefs.remote], prefs.needsSponsorship ? 'needs sponsorship' : null].filter(Boolean).join(' · '), edit: 'where', show: jobs },
     { label: 'What matters', value: `${prefs.includeKeywords.length} topics you'd love · ${prefs.excludeKeywords.length + prefs.excludeCompanies.length} things to skip`, edit: 'matters', show: jobs },
     { label: 'PhD research', value: [prefs.phd?.fields.join(', ') || 'No fields yet', prefs.phd?.countries.join(', ') || 'anywhere in Europe'].join(' · '), edit: 'phd', show: wantsPhd(prefs) },
     { label: 'Sources', value: `${boards} job board${boards === 1 ? '' : 's'} · ${prefs.targetCompanies.length} compan${prefs.targetCompanies.length === 1 ? 'y' : 'ies'} watched`, edit: 'sources', show: jobs },
+    {
+      label: 'Accounts',
+      value: [jobs ? `LinkedIn ${settings.linkedin.connected ? 'connected' : 'not connected'}` : null, settings.gmail?.connected ? `Gmail connected (${settings.gmail.email})` : 'Gmail not connected'].filter(Boolean).join(' · '),
+      edit: 'accounts',
+    },
   ] as Row[]).filter(r => r.show !== false);
 
   return (
